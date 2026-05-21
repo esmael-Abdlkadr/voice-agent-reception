@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Manrope", "Aptos", "Satoshi", "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 4% 12%, rgba(217, 242, 230, 0.95), transparent 26rem),
+    radial-gradient(circle at 92% 8%, rgba(239, 111, 97, 0.15), transparent 34rem),
+    linear-gradient(135deg, #eef8f1 0%, #f8faf5 44%, #fff4ee 100%);
+  color: #17201b;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.focus-ring {
+  @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss;
+}

@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: voice_agent
+      POSTGRES_PASSWORD: voice_agent
+      POSTGRES_DB: voice_agent_demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/docker/postgres-data:/var/lib/postgresql/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./infra/docker/qdrant-data:/qdrant/storage
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: voiceagent
+      MINIO_ROOT_PASSWORD: voiceagentdemo
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./infra/docker/minio-data:/data
