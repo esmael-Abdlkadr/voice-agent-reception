@@ -1,78 +1,177 @@
-export type MetricOverview = {
-  total_calls: number;
-  appointments_booked: number;
-  campaigns: number;
-  contacts: number;
-  rag_questions_answered: number;
-  estimated_local_platform_cost: string;
-  top_outcomes: Record<string, number>;
-};
-
-export type CallMessage = {
-  id: string;
-  session_id: string;
-  role: "user" | "assistant";
-  content: string;
+export type AuthUser = {
+  id: number;
+  email: string;
+  name: string;
+  status: string;
+  is_superuser: boolean;
   created_at: string;
 };
 
-export type CallSession = {
-  id: string;
-  contact_name: string;
-  direction: "inbound" | "outbound";
-  status: string;
-  outcome: string;
-  summary: string;
-  provider?: string;
-  external_call_id?: string;
-  caller_number?: string;
-  called_number?: string;
-  provider_status?: string;
-  duration_seconds?: number;
-  messages: CallMessage[];
-};
+export type WorkspaceRole = "owner" | "admin" | "viewer";
 
-export type Appointment = {
-  id: string;
-  contact_name: string;
-  title: string;
-  starts_at: string;
-  status: string;
-  notes: string;
-};
-
-export type Contact = {
-  id: string;
+export type WorkspaceSummary = {
+  id: number;
+  slug: string;
   name: string;
-  phone: string;
-  email: string;
-  company: string;
-  source: string;
+  role: WorkspaceRole;
 };
 
-export type Campaign = {
-  id: string;
+export type WorkspaceDetail = {
+  id: number;
+  slug: string;
   name: string;
-  mode: string;
-  prompt?: string;
+  created_at: string;
+  created_by_user_id: number;
+};
+
+export type WorkspaceMember = {
+  id: number;
+  user_id: number;
+  role: WorkspaceRole;
+  created_at: string;
+  user_email: string;
+  user_name: string;
+};
+
+export type Agent = {
+  id: number;
+  workspace_id: number;
+  name: string;
+  persona_prompt: string;
+  greeting: string;
+  voice_id: string;
+  voice_provider: string;
+  llm_model: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentCreate = {
+  name: string;
+  persona_prompt?: string;
+  greeting?: string;
+  voice_id?: string;
+  voice_provider?: string;
+  llm_model?: string;
+  is_active?: boolean;
+};
+
+export type AgentUpdate = Partial<AgentCreate>;
+
+export type CallStatus = "active" | "completed" | "failed" | "escalated";
+export type CallTurnRole = "user" | "agent";
+
+export type CallSummary = {
+  id: number;
+  workspace_id: number;
+  agent_id: number | null;
+  livekit_room_id: string;
+  caller_identity: string;
+  started_at: string;
+  ended_at: string | null;
+  status: CallStatus;
+  outcome: string | null;
+  duration_ms: number | null;
+};
+
+export type CallTurn = {
+  id: number;
+  role: CallTurnRole;
+  text: string;
+  ts_ms: number;
+  audio_ms: number | null;
+};
+
+export type CallToolCall = {
+  id: number;
+  tool_name: string;
+  args_json: Record<string, unknown>;
+  result_json: Record<string, unknown>;
+  ts_ms: number;
+  duration_ms: number;
   status: string;
 };
 
-export type KnowledgeDocument = {
-  id: string;
-  title: string;
-  content: string;
-  source_name: string;
+export type CallDetail = CallSummary & {
+  escalation_reason: string | null;
+  recording_url: string | null;
+  turns: CallTurn[];
+  tool_calls: CallToolCall[];
 };
 
-export type UserRole = "platform_admin" | "campaign_operator" | "analyst";
-
-export type AuthUser = {
-  id: string;
-  email: string;
+export type Tool = {
+  id: number;
+  workspace_id: number;
   name: string;
-  role: UserRole;
-  status: string;
+  description: string;
+  webhook_url: string;
+  auth_header: string | null;
+  schema_json: Record<string, unknown>;
+  created_at: string;
+};
+
+export type ToolCreate = {
+  name: string;
+  description: string;
+  webhook_url: string;
+  auth_header?: string | null;
+  schema_json?: Record<string, unknown>;
+};
+
+export type ToolUpdate = Partial<ToolCreate>;
+
+export type ToolTestResponse = {
+  status_code: number;
+  response_body: string;
+  error: string | null;
+  duration_ms: number;
+};
+
+export type WorkspaceAnalytics = {
+  window_days: number;
+  total_calls: number;
+  avg_duration_ms: number | null;
+  completion_rate: number;
+  by_status: {
+    completed: number;
+    active: number;
+    escalated: number;
+    failed: number;
+  };
+  by_day: { date: string; count: number }[];
+  top_tools: { tool_name: string; count: number }[];
+};
+
+export type KnowledgeStatus = "processing" | "ready" | "failed";
+
+export type KnowledgeDoc = {
+  id: number;
+  workspace_id: number;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  status: KnowledgeStatus;
+  chunk_count: number;
+  created_at: string;
+};
+
+export type KnowledgeSearchHit = {
+  doc_id: number;
+  filename: string;
+  chunk_idx: number;
+  text: string;
+  score: number;
+};
+
+export type KnowledgeSearchResponse = {
+  query: string;
+  hits: KnowledgeSearchHit[];
+};
+
+export type CurrentUserContext = {
+  user: AuthUser;
+  workspaces: WorkspaceSummary[];
 };
 
 export type LoginResponse = {
@@ -81,14 +180,11 @@ export type LoginResponse = {
   user: AuthUser;
 };
 
-export type TwilioSetupStatus = {
-  account_sid_configured: boolean;
-  auth_token_configured: boolean;
-  phone_number_configured: boolean;
-  public_webhook_base_url: string;
-  validate_webhooks: boolean;
-  inbound_webhook_url: string;
-  gather_webhook_url: string;
-  status_callback_url: string;
-  recording_callback_url: string;
+export type LiveKitTokenResponse = {
+  token: string;
+  url: string;
+  room: string;
+  identity: string;
+  workspace_id: number;
+  agent_id: number | null;
 };

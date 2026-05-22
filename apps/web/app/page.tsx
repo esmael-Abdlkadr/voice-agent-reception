@@ -1,153 +1,271 @@
+"use client";
+
 import Link from "next/link";
-import { Activity, ArrowUpRight, BrainCircuit, CalendarCheck, Headphones, Megaphone, PhoneCall, RadioTower } from "lucide-react";
+import { ArrowUpRight, Plus, Radio } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { DataPanel } from "@/components/data-panel";
-import { MetricCard } from "@/components/metric-card";
-import { StatusPill } from "@/components/status-pill";
-import { api } from "@/lib/api";
-import { fallbackAppointments, fallbackCalls, fallbackCampaigns, fallbackOverview } from "@/lib/demo";
-import { outcomeLabel, visibleAppointments, visibleCalls, visibleCampaigns } from "@/lib/presentation";
+import { useAuth } from "@/components/auth-provider";
+import { useLiveCalls } from "@/lib/use-live-calls";
+import type { CallSummary } from "@/lib/types";
 
-export default async function DashboardPage() {
-  const [overview, calls, appointments, campaigns] = await Promise.all([
-    api.overview().catch(() => fallbackOverview),
-    api.calls().catch(() => fallbackCalls),
-    api.appointments().catch(() => fallbackAppointments),
-    api.campaigns().catch(() => fallbackCampaigns),
-  ]);
-  const customerCalls = visibleCalls(calls);
-  const customerAppointments = visibleAppointments(appointments);
-  const customerCampaigns = visibleCampaigns(campaigns);
-  const completedCalls = customerCalls.filter((call) => call.status === "completed");
-  const recentCalls = completedCalls.slice(-5).reverse();
-  const outcomeMix = completedCalls.reduce<Record<string, number>>((outcomes, call) => {
-    outcomes[call.outcome] = (outcomes[call.outcome] ?? 0) + 1;
-    return outcomes;
-  }, {});
-  const maxOutcomeCount = Math.max(1, ...Object.values(outcomeMix));
-  const conversionRate = completedCalls.length ? Math.round((customerAppointments.length / completedCalls.length) * 100) : 0;
-  const knowledgeReplies = Math.min(overview.rag_questions_answered, completedCalls.length);
-  const latestAppointment = customerAppointments.at(-1);
-
+export default function HomePage() {
   return (
     <AppShell>
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-ink px-5 py-5 text-white shadow-soft sm:px-7 lg:px-8">
-        <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-coral/[0.30] blur-3xl" />
-        <div className="absolute bottom-0 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-mint/[0.15] blur-3xl" />
-        <div className="relative grid gap-6 lg:grid-cols-[1fr_360px] lg:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-mint">
-              <RadioTower className="h-4 w-4" />
-              Command center
-            </div>
-            <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl xl:text-6xl">
-              AI voice operations for BrightCare Dental.
-            </h1>
-            <p className="mt-5 max-w-3xl text-base leading-7 text-white/[0.68]">
-              Manage live receptionist sessions, campaign follow-ups, appointment bookings, grounded knowledge answers, and call outcomes from one secure workspace.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href="/playground" className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-coral px-4 py-3 text-sm font-black text-white shadow-lg shadow-coral/20 transition hover:-translate-y-0.5">
-                <Headphones className="h-4 w-4" />
-                Start live agent
-              </Link>
-              <Link href="/campaigns" className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl border border-white/[0.12] bg-white/[0.08] px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/[0.12]">
-                <Megaphone className="h-4 w-4" />
-                Review campaigns
-              </Link>
-            </div>
-          </div>
-          <div className="rounded-[1.5rem] border border-white/[0.12] bg-white/[0.08] p-4 backdrop-blur">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/[0.52]">Operations pulse</p>
-            <div className="mt-4 grid gap-3">
-              <div className="flex items-center justify-between rounded-2xl bg-black/[0.20] px-4 py-3">
-                <span className="text-sm text-white/[0.68]">Completion rate</span>
-                <span className="text-2xl font-black">{conversionRate}%</span>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl bg-black/[0.20] px-4 py-3">
-                <span className="text-sm text-white/[0.68]">Latest booking</span>
-                <span className="max-w-44 truncate text-right text-sm font-black">{latestAppointment?.starts_at ?? "No bookings yet"}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl bg-black/[0.20] px-4 py-3">
-                <span className="text-sm text-white/[0.68]">AI provider</span>
-                <span className="text-sm font-black">Groq</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={PhoneCall} label="Calls handled" value={completedCalls.length} detail="Completed customer conversations" />
-        <MetricCard icon={CalendarCheck} label="Appointments" value={customerAppointments.length} detail="Booked and ready for follow-up" />
-        <MetricCard icon={BrainCircuit} label="Knowledge replies" value={knowledgeReplies} detail="Answers grounded in business content" />
-        <MetricCard icon={Megaphone} label="Campaigns" value={customerCampaigns.length} detail="Outbound workflows configured" />
-      </div>
-
-      <div className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-        <DataPanel title="Recent customer outcomes">
-          {recentCalls.length ? (
-            <div className="space-y-3">
-              {recentCalls.map((call) => (
-                <div key={call.id} className="group flex flex-col gap-3 rounded-2xl border border-line/80 bg-cloud/[0.70] p-4 transition hover:border-moss/[0.20] hover:bg-white sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-ink text-sm font-black text-white">
-                      {call.contact_name.slice(0, 1)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-black text-ink">{call.contact_name}</p>
-                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-ink/[0.62]">{call.summary}</p>
-                    </div>
-                  </div>
-                  <StatusPill value={call.outcome} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-line bg-cloud/[0.60] px-4 py-10 text-center">
-              <Activity className="mx-auto h-8 w-8 text-moss" />
-              <p className="mt-3 font-black text-ink">No completed customer calls yet</p>
-              <p className="mt-2 text-sm text-ink/[0.62]">Completed live agent sessions and campaign calls will appear here.</p>
-            </div>
-          )}
-        </DataPanel>
-
-        <div className="grid gap-5">
-          <DataPanel title="Outcome mix">
-            {Object.keys(outcomeMix).length ? (
-              <div className="space-y-4">
-                {Object.entries(outcomeMix).map(([outcome, count]) => (
-                  <div key={outcome}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="capitalize text-ink/70">{outcomeLabel(outcome)}</span>
-                      <span className="font-black">{count}</span>
-                    </div>
-                    <div className="h-2.5 rounded-full bg-line">
-                      <div className="h-2.5 rounded-full bg-gradient-to-r from-moss to-coral" style={{ width: `${Math.max(14, (count / maxOutcomeCount) * 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-line bg-cloud/[0.60] px-4 py-8 text-center text-sm text-ink/[0.62]">No completed outcomes yet.</div>
-            )}
-          </DataPanel>
-
-          <section className="overflow-hidden rounded-2xl border border-moss/[0.15] bg-mint/[0.70] p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-moss/[0.70]">Next best action</p>
-                <h2 className="mt-2 text-xl font-black text-ink">Review booked appointments</h2>
-                <p className="mt-2 text-sm leading-6 text-ink/[0.62]">Confirm the latest assistant bookings and prepare the next customer follow-up.</p>
-              </div>
-              <ArrowUpRight className="h-5 w-5 text-moss" />
-            </div>
-            <Link href="/appointments" className="focus-ring mt-5 inline-flex items-center justify-center rounded-2xl bg-ink px-4 py-3 text-sm font-black text-white transition hover:bg-moss">
-              Open appointments
-            </Link>
-          </section>
-        </div>
-      </div>
+      <LiveOperationsView />
     </AppShell>
   );
+}
+
+function LiveOperationsView() {
+  const { currentWorkspaceId, workspaces, openNewWorkspaceModal } = useAuth();
+  const calls = useLiveCalls(currentWorkspaceId);
+
+  const active = calls.filter((c) => c.status === "active");
+  const today = todayCalls(calls);
+  const recent = calls.filter((c) => c.status !== "active").slice(0, 5);
+
+  return (
+    <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(34,211,238,0.10),transparent_60%)]"
+      />
+
+      <div className="relative mx-auto max-w-6xl px-10 pb-16 pt-10">
+        <header className="mb-10">
+          <div className="mb-2 flex items-center gap-2">
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${
+                active.length > 0
+                  ? "bg-accent-400 animate-pulse-glow"
+                  : "bg-zinc-700"
+              }`}
+            />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+              {active.length > 0 ? "Live" : "Idle"}
+            </span>
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-100">
+            {workspaces.length === 0
+              ? "Welcome to VoiceOps."
+              : active.length === 0
+                ? "Nothing on the line right now."
+                : `${active.length} active call${active.length === 1 ? "" : "s"}`}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-zinc-400">
+            {workspaces.length === 0
+              ? "Create your first workspace to start configuring an agent and receiving calls."
+              : "Real-time activity across your workspaces. Recent completed calls and today's snapshot below."}
+          </p>
+          {workspaces.length === 0 && (
+            <button
+              type="button"
+              onClick={openNewWorkspaceModal}
+              className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-accent-400 px-3.5 py-2 text-sm font-medium text-zinc-950 transition hover:bg-accent-300"
+            >
+              <Plus className="h-4 w-4" />
+              Create your first workspace
+            </button>
+          )}
+        </header>
+
+        <section className="mb-12">
+          {active.length === 0 ? (
+            <EmptyActive />
+          ) : (
+            <ul className="grid gap-3 md:grid-cols-2">
+              {active.map((c) => (
+                <ActiveCallCard key={c.id} call={c} />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mb-12">
+          <SectionHeader title="Today" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat label="Calls" value={today.count.toString()} />
+            <Stat label="Avg duration" value={today.avgDurationLabel} />
+            <Stat label="Completed" value={today.completedCount.toString()} />
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader
+            title="Recent"
+            trailing={
+              recent.length > 0 ? (
+                <Link
+                  href="/calls"
+                  className="group inline-flex items-center gap-1 text-xs text-zinc-400 transition hover:text-accent-400"
+                >
+                  All calls
+                  <ArrowUpRight className="h-3 w-3 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </Link>
+              ) : null
+            }
+          />
+          {recent.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-500">
+              No completed calls yet. Try one from the Agent page.
+            </p>
+          ) : (
+            <ul className="overflow-hidden rounded-xl border border-zinc-800">
+              {recent.map((c, idx) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/calls?call=${c.id}`}
+                    className={`flex items-center justify-between gap-4 px-4 py-3 text-sm transition hover:bg-zinc-900 ${
+                      idx > 0 ? "border-t border-zinc-800/60" : ""
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotForStatus(c.status)}`}
+                      />
+                      <span className="truncate text-zinc-200">{c.caller_identity}</span>
+                      <span className="hidden truncate font-mono text-[11px] text-zinc-600 sm:inline">
+                        {c.livekit_room_id}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3 text-[11px] tabular-nums text-zinc-500">
+                      <span>{formatDuration(c.duration_ms)}</span>
+                      <span>{formatRelative(c.started_at)}</span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function EmptyActive() {
+  return (
+    <div className="grid place-items-center rounded-2xl border border-zinc-800 bg-zinc-900/30 px-6 py-16">
+      <Waveform />
+      <p className="mt-6 text-sm text-zinc-400">Waiting for the next call.</p>
+      <p className="mt-1 text-xs text-zinc-600">
+        Active calls appear here in real time.
+      </p>
+    </div>
+  );
+}
+
+function Waveform() {
+  const bars = [10, 22, 14, 32, 18, 40, 24, 50, 18, 36, 14, 26, 10];
+  return (
+    <div className="flex h-14 items-center gap-1.5">
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          className="w-1 rounded-full bg-zinc-700"
+          style={{ height: `${h}px` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ActiveCallCard({ call }: { call: CallSummary }) {
+  return (
+    <Link
+      href={`/calls?call=${call.id}`}
+      className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition hover:border-accent-400/40 hover:bg-zinc-900"
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse-glow" />
+        <span className="text-[10px] font-medium uppercase tracking-wider text-accent-400">
+          Live
+        </span>
+        <span className="ml-auto font-mono text-[11px] text-zinc-500">
+          {call.livekit_room_id}
+        </span>
+      </div>
+      <div className="text-sm text-zinc-100">{call.caller_identity}</div>
+      <div className="mt-1 text-[11px] text-zinc-500">
+        started {formatRelative(call.started_at)}
+      </div>
+    </Link>
+  );
+}
+
+function SectionHeader({
+  title,
+  trailing,
+}: {
+  title: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+        {title}
+      </h2>
+      {trailing}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-4">
+      <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+        {label}
+      </div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums text-zinc-100">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function todayCalls(all: CallSummary[]) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const today = all.filter((c) => new Date(c.started_at) >= start);
+  const completed = today.filter((c) => c.status === "completed");
+  const totalMs = completed.reduce((acc, c) => acc + (c.duration_ms ?? 0), 0);
+  const avgMs = completed.length > 0 ? Math.round(totalMs / completed.length) : 0;
+  return {
+    count: today.length,
+    completedCount: completed.length,
+    avgDurationLabel: completed.length === 0 ? "—" : formatDuration(avgMs),
+  };
+}
+
+function dotForStatus(status: CallSummary["status"]): string {
+  switch (status) {
+    case "active":
+      return "bg-accent-400";
+    case "completed":
+      return "bg-emerald-400";
+    case "escalated":
+      return "bg-violet-400";
+    case "failed":
+      return "bg-rose-400";
+  }
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (ms == null) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function formatRelative(iso: string): string {
+  const date = new Date(iso);
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.round(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return date.toLocaleDateString();
 }

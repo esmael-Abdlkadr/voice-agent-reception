@@ -2,29 +2,43 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Headphones, LayoutDashboard, LogOut, Megaphone, Settings, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { useEffect } from "react";
+import {
+  BarChart3,
+  BookOpen,
+  Bot,
+  LogOut,
+  PhoneCall,
+  Radio,
+  Settings,
+  Wrench,
+} from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { NewWorkspaceModal } from "@/components/new-workspace-modal";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/playground", label: "Live Agent", icon: Headphones },
-  { href: "/calls", label: "Calls", icon: BarChart3 },
-  { href: "/appointments", label: "Appointments", icon: CalendarDays },
-  { href: "/contacts", label: "Contacts", icon: Users },
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/", label: "Live", icon: Radio },
+  { href: "/calls", label: "Calls", icon: PhoneCall },
+  { href: "/agent", label: "Agent", icon: Bot },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/tools", label: "Tools", icon: Wrench },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings, disabled: true },
 ];
-
-function roleLabel(role?: string) {
-  return (role ?? "").replaceAll("_", " ") || "signed in";
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { status, user, logout } = useAuth();
+  const {
+    status,
+    user,
+    logout,
+    refresh,
+    setCurrentWorkspaceId,
+    newWorkspaceModalOpen,
+    closeNewWorkspaceModal,
+  } = useAuth();
 
   useEffect(() => {
     if (status === "anonymous") router.replace("/login");
@@ -32,58 +46,80 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (status !== "authenticated") {
     return (
-      <div className="grid min-h-screen place-items-center px-4">
-        <div className="rounded-md border border-line bg-white px-5 py-4 text-sm font-bold text-ink shadow-soft">Checking secure session...</div>
+      <div className="grid min-h-screen place-items-center bg-zinc-950 px-4">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4 text-sm text-zinc-300">
+          Checking your session...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-3 py-3 sm:px-5 lg:px-6">
-      <div className="mx-auto flex max-w-[1720px] flex-col gap-5 lg:flex-row">
-        <aside className="overflow-hidden rounded-[1.7rem] border border-white/[0.10] bg-ink p-3 text-white shadow-soft lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-72">
-          <div className="relative mb-4 overflow-hidden rounded-[1.35rem] border border-white/[0.10] bg-white/[0.06] px-3 py-4">
-            <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-coral/[0.25] blur-2xl" />
-            <div className="relative flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-coral font-black shadow-lg shadow-coral/20">V</div>
-              <div className="min-w-0">
-                <p className="text-base font-black leading-tight">VoiceAgentOS</p>
-                <p className="truncate text-xs font-medium text-white/[0.62]">Operations console</p>
-              </div>
+    <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950">
+        <div className="px-5 py-5">
+          <div className="mb-5 flex items-center gap-2">
+            <div className="grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br from-accent-400 to-accent-600 text-xs font-bold text-zinc-950">
+              V
             </div>
-            <div className="relative mt-4 flex items-center gap-3 rounded-2xl bg-black/[0.20] px-3 py-3 ring-1 ring-white/[0.10]">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-mint/[0.15] text-mint">
-                <ShieldCheck className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black">{user?.name}</p>
-                <p className="truncate text-xs capitalize text-white/[0.56]">{roleLabel(user?.role)}</p>
-              </div>
+            <div className="text-sm font-medium tracking-tight text-zinc-100">
+              VoiceOps
             </div>
           </div>
-          <nav className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-            {navItems.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`focus-ring flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition ${
-                    active ? "bg-mint text-ink shadow-sm" : "text-white/[0.68] hover:bg-white/[0.10] hover:text-white"
+          <WorkspaceSwitcher />
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3">
+          <div className="mb-2 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+            Workspace
+          </div>
+          {navItems.map((item) => {
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const ItemEl = item.disabled ? "div" : Link;
+            return (
+              <ItemEl
+                key={item.href}
+                {...(item.disabled ? {} : { href: item.href })}
+                className={`group mb-0.5 flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition ${
+                  item.disabled
+                    ? "cursor-not-allowed text-zinc-600"
+                    : active
+                      ? "bg-zinc-900 text-zinc-100"
+                      : "text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200"
+                }`}
+              >
+                <item.icon
+                  className={`h-4 w-4 ${
+                    active && !item.disabled ? "text-accent-400" : ""
                   }`}
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="mt-4 rounded-2xl border border-white/[0.10] bg-white/[0.06] p-3">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-mint">
-              <Sparkles className="h-4 w-4" />
-              Ready
+                />
+                <span>{item.label}</span>
+                {item.disabled && (
+                  <span className="ml-auto rounded bg-zinc-900 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-zinc-500">
+                    soon
+                  </span>
+                )}
+              </ItemEl>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-zinc-800/80 px-3 py-3">
+          <div className="mb-2 flex items-center gap-2.5 rounded-md px-2 py-1.5">
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-zinc-800 text-xs font-medium text-zinc-300">
+              {(user?.name ?? "?").slice(0, 1).toUpperCase()}
             </div>
-            <p className="mt-2 text-sm leading-5 text-white/[0.62]">AI calls, knowledge answers, campaign outcomes, and appointments are connected.</p>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium text-zinc-200">
+                {user?.name}
+              </div>
+              <div className="truncate text-[11px] text-zinc-500">
+                {user?.email}
+              </div>
+            </div>
           </div>
           <button
             type="button"
@@ -91,14 +127,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               logout();
               router.replace("/login");
             }}
-            className="focus-ring mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/[0.10] bg-white/[0.06] px-3 py-3 text-sm font-black text-white transition hover:bg-white/[0.12]"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 transition hover:bg-zinc-900 hover:text-zinc-200"
           >
             <LogOut className="h-4 w-4" />
             Sign out
           </button>
-        </aside>
-        <main className="min-w-0 flex-1 pb-8">{children}</main>
-      </div>
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1 bg-zinc-950">{children}</main>
+
+      <NewWorkspaceModal
+        open={newWorkspaceModalOpen}
+        onClose={closeNewWorkspaceModal}
+        onCreated={async (id) => {
+          closeNewWorkspaceModal();
+          await refresh();
+          setCurrentWorkspaceId(id);
+        }}
+      />
     </div>
   );
 }

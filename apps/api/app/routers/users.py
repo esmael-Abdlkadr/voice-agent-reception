@@ -1,38 +1,63 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+"""User CRUD (superuser-only). Workspace-scoped permissions land later."""
+from __future__ import annotations
 
-from app.models import UserCreate, UserPublic, UserUpdate
-from app.services import auth_service, store
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db import get_session
+from app.models import User
+from app.schemas import UserCreate, UserPublic, UserUpdate
+from app.services import auth_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("")
-def list_users(_user=Depends(auth_service.require_roles("platform_admin"))) -> list[UserPublic]:
-    return [auth_service.public_user(user) for user in store.users.values()]
+@router.get("", response_model=list[UserPublic])
+def list_users(
+    _superuser: User = Depends(auth_service.require_superuser),
+    session: Session = Depends(get_session),
+) -> list[UserPublic]:
+    users = session.execute(select(User).order_by(User.created_at)).scalars().all()
+    return [UserPublic.model_validate(u) for u in users]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate, _user=Depends(auth_service.require_roles("platform_admin"))) -> UserPublic:
-    return auth_service.public_user(auth_service.create_user(payload))
+@router.post("", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+def create_user(
+    payload: UserCreate,
+    _superuser: User = Depends(auth_service.require_superuser),
+    session: Session = Depends(get_session),
+) -> UserPublic:
+    if session.execute(select(User).where(User.email == payload.email.lower())).first():
+        raise HTTPException(status_code=409, detail="User email already exists")
+    user = User(
+        email=payload.email.lower(),
+        name=payload.name,
+        password_hash=auth_service.hash_password(payload.password),
+        is_superuser=payload.is_superuser,
+        status="active",
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return UserPublic.model_validate(user)
 
 
-@router.get("/{user_id}")
-def get_user(user_id: str, _user=Depends(auth_service.require_roles("platform_admin"))) -> UserPublic:
-    if user_id not in store.users:
+@router.patch("/{user_id}", response_model=UserPublic)
+def update_user(
+    user_id: int,
+    payload: UserUpdate,
+    _superuser: User = Depends(auth_service.require_superuser),
+    session: Session = Depends(get_session),
+) -> UserPublic:
+    user = session.get(User, user_id)
+    if user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return auth_service.public_user(store.users[user_id])
-
-
-@router.patch("/{user_id}")
-def update_user(user_id: str, payload: UserUpdate, _user=Depends(auth_service.require_roles("platform_admin"))) -> UserPublic:
-    if user_id not in store.users:
-        raise HTTPException(status_code=404, detail="User not found")
-    update = payload.model_dump(exclude_unset=True)
-    if "role" in update:
-        auth_service.assert_valid_role(update["role"])
-        update["role"] = auth_service.normalize_role(update["role"])
-    if "password" in update:
-        update["password_hash"] = auth_service.hash_password(update.pop("password"))
-    user = store.users[user_id].model_copy(update=update)
-    store.users[user.id] = user
-    return auth_service.public_user(user)
+    fields = payload.model_dump(exclude_unset=True)
+    if "password" in fields:
+        user.password_hash = auth_service.hash_password(fields.pop("password"))
+    for key, value in fields.items():
+        setattr(user, key, value)
+    session.commit()
+    session.refresh(user)
+    return UserPublic.model_validate(user)

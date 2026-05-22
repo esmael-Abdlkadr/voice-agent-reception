@@ -2,14 +2,14 @@
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LockKeyhole, RadioTower, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, status } = useAuth();
-  const [email, setEmail] = useState("admin@voiceagent.local");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("admin@voiceops.dev");
+  const [password, setPassword] = useState("voiceops-dev");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -25,80 +25,170 @@ export default function LoginPage() {
         await login(email, password);
         router.replace("/");
       } catch {
-        setError("Login failed. Check the email, password, and API server.");
+        setError("Login failed. Check the email, password, and that the API is running.");
       }
     });
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-cloud lg:grid-cols-[0.95fr_1.05fr]">
-      <section className="hidden border-r border-line bg-ink px-10 py-10 text-white lg:flex lg:flex-col lg:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-3 rounded-md bg-white/10 px-3 py-2">
-            <RadioTower className="h-5 w-5 text-coral" />
-            <span className="text-sm font-black">VoiceAgentOS</span>
-          </div>
-          <h1 className="mt-10 max-w-xl text-5xl font-black leading-tight">Secure console for AI calls, campaigns, and knowledge.</h1>
-        </div>
-        <div className="grid gap-3 text-sm text-white/70">
-          <p>Groq-backed assistant responses</p>
-          <p>Role-based access for platform teams</p>
-          <p>Call logs, appointments, transcripts, and analytics</p>
-        </div>
-      </section>
+    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+      <HeroPane />
 
-      <section className="flex items-center justify-center px-4 py-8">
-        <form onSubmit={submit} className="w-full max-w-md rounded-lg border border-line bg-white p-5 shadow-soft sm:p-6">
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <section className="relative flex items-center justify-center bg-zinc-950 px-6 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-12 flex items-center gap-2 lg:hidden">
+            <Mark />
+            <span className="text-base font-medium tracking-tight">VoiceOps</span>
+          </div>
+
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
+            Sign in
+          </h1>
+          <p className="mt-1.5 text-sm text-zinc-400">
+            Use your operator credentials.
+          </p>
+
+          <form onSubmit={submit} className="mt-9 space-y-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-moss">Authenticated access</p>
-              <h2 className="mt-2 text-2xl font-black text-ink">Sign in</h2>
+              <label
+                className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500"
+                htmlFor="email"
+              >
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-accent-400/60 focus:shadow-glow"
+              />
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-md bg-mint text-ink">
-              <ShieldCheck className="h-5 w-5" />
+
+            <div>
+              <label
+                className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500"
+                htmlFor="password"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-accent-400/60 focus:shadow-glow"
+              />
             </div>
+
+            {error && (
+              <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="group flex w-full items-center justify-center gap-1.5 rounded-lg bg-accent-400 px-4 py-2.5 text-sm font-medium text-zinc-950 transition hover:bg-accent-300 disabled:opacity-60"
+            >
+              {isPending ? "Signing in..." : "Continue"}
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </button>
+          </form>
+
+          <div className="mt-10 border-t border-zinc-900 pt-5">
+            <p className="font-mono text-[11px] text-zinc-600">
+              dev seed
+            </p>
+            <p className="mt-1 font-mono text-[11px] text-zinc-500">
+              admin@voiceops.dev · voiceops-dev
+            </p>
           </div>
-
-          <label className="block text-sm font-bold text-ink" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="focus-ring mt-2 w-full rounded-md border border-line bg-cloud px-3 py-3 text-sm text-ink"
-            autoComplete="username"
-          />
-
-          <label className="mt-4 block text-sm font-bold text-ink" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="focus-ring mt-2 w-full rounded-md border border-line bg-cloud px-3 py-3 text-sm text-ink"
-            autoComplete="current-password"
-          />
-
-          {error ? <p className="mt-4 rounded-md border border-coral/[0.40] bg-coral/[0.10] px-3 py-2 text-sm font-bold text-coral">{error}</p> : null}
-
-          <button
-            type="submit"
-            disabled={isPending}
-            className="focus-ring mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-ink px-4 py-3 text-sm font-black text-white transition hover:bg-moss disabled:opacity-60"
-          >
-            <LockKeyhole className="h-4 w-4" />
-            {isPending ? "Signing in..." : "Sign in to platform"}
-          </button>
-
-          <div className="mt-5 rounded-md border border-line bg-cloud px-3 py-3 text-xs leading-5 text-ink/[0.68]">
-            Seeded admin: <strong>admin@voiceagent.local</strong> / <strong>admin123</strong>
-          </div>
-        </form>
+        </div>
       </section>
     </main>
+  );
+}
+
+function HeroPane() {
+  // Bars used for the decorative waveform. Heights chosen to read like
+  // a voice waveform rather than a chart.
+  const bars = [
+    14, 28, 18, 42, 22, 56, 34, 70, 28, 48, 16, 36, 22, 60, 38, 52, 24, 44, 18,
+    32, 14, 22,
+  ];
+
+  return (
+    <section className="relative hidden overflow-hidden border-r border-zinc-900 bg-zinc-950 lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-12">
+      {/* Ambient layered glows — soft, off-center, not a head-on radial */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-32 top-0 h-[36rem] w-[36rem] rounded-full bg-accent-500/[0.08] blur-[110px]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-accent-400/[0.05] blur-[110px]"
+      />
+
+      {/* Logo */}
+      <div className="relative flex items-center gap-2.5">
+        <Mark />
+        <span className="text-base font-medium tracking-tight">VoiceOps</span>
+      </div>
+
+      {/* Center pitch */}
+      <div className="relative max-w-xl">
+        <p className="mb-4 inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-accent-400">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse-glow" />
+          Voice-AI Ops Console
+        </p>
+        <h2 className="text-4xl font-semibold leading-[1.1] tracking-tight text-zinc-100 lg:text-5xl">
+          Every customer call,
+          <br />
+          <span className="text-zinc-500">answered, captured, searchable.</span>
+        </h2>
+        <p className="mt-5 max-w-md text-sm leading-relaxed text-zinc-400">
+          Run AI voice agents for your clients. Watch live calls, configure
+          personas, ground answers in their knowledge base, review every
+          transcript — from one console.
+        </p>
+      </div>
+
+      {/* Waveform decoration */}
+      <div className="relative">
+        <div className="mb-3 flex items-end gap-1 text-zinc-700">
+          {bars.map((h, i) => (
+            <span
+              key={i}
+              className="w-1 rounded-full bg-current"
+              style={{
+                height: `${h}px`,
+                background:
+                  i % 5 === 0
+                    ? "rgba(34, 211, 238, 0.5)"
+                    : "rgb(63, 63, 70)",
+              }}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-6 font-mono text-[11px] text-zinc-600">
+          <span>Groq · LLM</span>
+          <span>Deepgram · STT</span>
+          <span>Cartesia · TTS</span>
+          <span>LiveKit · transport</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Mark() {
+  return (
+    <div className="grid h-8 w-8 place-items-center rounded-md bg-gradient-to-br from-accent-400 to-accent-600 text-sm font-bold text-zinc-950">
+      V
+    </div>
   );
 }

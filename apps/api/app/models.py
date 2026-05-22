@@ -1,351 +1,237 @@
-from pydantic import BaseModel, Field
-
-
-class ContactCreate(BaseModel):
-    name: str
-    phone: str = ""
-    email: str = ""
-    company: str = ""
-    source: str = "manual"
-
-
-class Contact(ContactCreate):
-    id: str
-
-
-class ContactUpdate(BaseModel):
-    name: str | None = None
-    phone: str | None = None
-    email: str | None = None
-    company: str | None = None
-    source: str | None = None
-
-
-class AppointmentCreate(BaseModel):
-    contact_id: str
-    contact_name: str
-    title: str
-    starts_at: str
-    status: str = "booked"
-    notes: str = ""
-
-
-class Appointment(AppointmentCreate):
-    id: str
-
-
-class AppointmentUpdate(BaseModel):
-    contact_id: str | None = None
-    contact_name: str | None = None
-    title: str | None = None
-    starts_at: str | None = None
-    status: str | None = None
-    notes: str | None = None
-
-
-class CampaignCreate(BaseModel):
-    name: str
-    mode: str = "outbound"
-    prompt: str = "Qualify interest and offer an appointment."
-
-
-class Campaign(CampaignCreate):
-    id: str
-    status: str = "draft"
-
-
-class CampaignUpdate(BaseModel):
-    name: str | None = None
-    mode: str | None = None
-    prompt: str | None = None
-    status: str | None = None
-
-
-class CampaignCsvImport(BaseModel):
-    csv_content: str
-
-
-class CallMessage(BaseModel):
-    id: str
-    session_id: str
-    role: str
-    content: str
-    created_at: str
-
-
-class CallSession(BaseModel):
-    id: str
-    contact_id: str | None = None
-    contact_name: str = "Unknown caller"
-    campaign_id: str | None = None
-    direction: str = "inbound"
-    status: str = "active"
-    outcome: str = "in_progress"
-    summary: str = ""
-    started_at: str
-    ended_at: str | None = None
-    provider: str = "browser"
-    external_call_id: str = ""
-    caller_number: str = ""
-    called_number: str = ""
-    provider_status: str = ""
-    duration_seconds: int = 0
-    last_webhook_at: str | None = None
-    messages: list[CallMessage] = Field(default_factory=list)
-
-
-class CallSessionUpdate(BaseModel):
-    status: str | None = None
-    outcome: str | None = None
-    summary: str | None = None
-    ended_at: str | None = None
-    provider_status: str | None = None
-    duration_seconds: int | None = None
-    last_webhook_at: str | None = None
-
-
-class KnowledgeDocumentCreate(BaseModel):
-    title: str
-    content: str
-    source_name: str = "manual"
-
-
-class KnowledgeDocument(KnowledgeDocumentCreate):
-    id: str
-
-
-class AgentSessionCreate(BaseModel):
-    direction: str = "inbound"
-    contact_id: str | None = None
-    campaign_id: str | None = None
-
-
-class AgentMessageCreate(BaseModel):
-    session_id: str
-    message: str
-
-
-class KnowledgeSearchRequest(BaseModel):
-    query: str
-
-
-class KnowledgeAnswerRequest(BaseModel):
-    query: str
-    max_context_items: int = 2
-
-
-class KnowledgeAnswerResponse(BaseModel):
-    query: str
-    answer: str
-    llm: dict[str, str]
-    results: list[dict]
-
-
-class LlmHealthResponse(BaseModel):
-    provider: str
-    model: str
-    deterministic_mode: bool
-    api_key_configured: bool
-    provider_reachable: bool
-    model_available: bool
-    mode: str
-
-
-class LlmModelInfo(BaseModel):
-    name: str
-    size: int = 0
-    modified_at: str = ""
-
-
-class LlmModelsResponse(BaseModel):
-    provider: str
-    models: list[LlmModelInfo]
-
-
-class LlmChatRequest(BaseModel):
-    message: str
-    system_prompt: str = "You are Ava, a concise AI voice assistant for BrightCare Dental."
-    model: str | None = None
-
-
-class LlmChatResponse(BaseModel):
-    reply: str
-    llm: dict[str, str]
-
-
-class SipTrunkCreate(BaseModel):
-    name: str
-    provider: str
-    host: str
-    username: str = ""
-    caller_id: str = ""
-    max_concurrent_calls: int = 1
-    status: str = "draft"
-
-
-class SipTrunk(SipTrunkCreate):
-    id: str
-
-
-class SipTrunkUpdate(BaseModel):
-    name: str | None = None
-    provider: str | None = None
-    host: str | None = None
-    username: str | None = None
-    caller_id: str | None = None
-    max_concurrent_calls: int | None = None
-    status: str | None = None
-
-
-class OutboundCallRequest(BaseModel):
-    trunk_id: str
-    contact_id: str
-    campaign_id: str | None = None
-
-
-class AmdSettings(BaseModel):
-    enabled: bool = True
-    detection_window_seconds: int = 4
-    sensitivity: float = 0.7
-
-
-class AmdAnalysisRequest(BaseModel):
-    greeting_text: str = ""
-    audio_duration_seconds: float = 0
-
-
-class VoicemailTemplateCreate(BaseModel):
-    name: str
-    message_text: str
-    voice: str = "browser-default"
-    audio_url: str = ""
-    status: str = "draft"
-
-
-class VoicemailTemplate(VoicemailTemplateCreate):
-    id: str
-
-
-class VoicemailTemplateUpdate(BaseModel):
-    name: str | None = None
-    message_text: str | None = None
-    voice: str | None = None
-    audio_url: str | None = None
-    status: str | None = None
-
-
-class AgentProfileCreate(BaseModel):
-    name: str
-    persona: str
-    system_prompt: str
-    voice: str = "browser-default"
-    language: str = "en-US"
-    temperature: float = 0.3
-    status: str = "draft"
-
-
-class AgentProfile(AgentProfileCreate):
-    id: str
-
-
-class AgentProfileUpdate(BaseModel):
-    name: str | None = None
-    persona: str | None = None
-    system_prompt: str | None = None
-    voice: str | None = None
-    language: str | None = None
-    temperature: float | None = None
-    status: str | None = None
-
-
-class OrchestrationConfig(BaseModel):
-    framework: str = "pipecat"
-    transport: str = "browser"
-    vad_enabled: bool = True
-    barge_in_enabled: bool = True
-    target_latency_ms: int = 900
-
-
-class RecordingCreate(BaseModel):
-    call_id: str
-    storage_url: str
-    duration_seconds: float
-    transcript_status: str = "pending"
-
-
-class Recording(RecordingCreate):
-    id: str
-
-
-class RuntimeSettings(BaseModel):
-    llm_provider: str = "groq"
-    llm_model: str = "llama-3.1-8b-instant"
-    groq_base_url: str = "https://api.groq.com/openai/v1"
-    stt_provider: str = "faster-whisper"
-    tts_provider: str = "piper"
-    telephony_mode: str = "browser"
-
-
-class TwilioSetupStatus(BaseModel):
-    account_sid_configured: bool
-    auth_token_configured: bool
-    phone_number_configured: bool
-    public_webhook_base_url: str
-    validate_webhooks: bool
-    inbound_webhook_url: str
-    gather_webhook_url: str
-    status_callback_url: str
-    recording_callback_url: str
-
-
-class CostEstimateRequest(BaseModel):
-    daily_calls: int
-    average_call_minutes: float
-    live_answer_rate: float
-    sip_cost_per_minute: float
-    ai_cost_per_live_minute: float = 0
-    voicemail_cost_per_minute: float = 0
-
-
-class UserCreate(BaseModel):
-    email: str
-    name: str
-    role: str = "analyst"
-    password: str
-    status: str = "active"
-
-
-class User(BaseModel):
-    id: str
-    email: str
-    name: str
-    role: str
-    password_hash: str
-    status: str = "active"
-
-
-class UserPublic(BaseModel):
-    id: str
-    email: str
-    name: str
-    role: str
-    status: str = "active"
-
-
-class UserUpdate(BaseModel):
-    email: str | None = None
-    name: str | None = None
-    role: str | None = None
-    password: str | None = None
-    status: str | None = None
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserPublic
+"""SQLAlchemy 2.0 ORM models for the voice-AI ops console.
+
+Schema mirrors the V1 design: an agency operator (User) belongs to many
+client workspaces (Workspace) via WorkspaceMember, and each workspace owns
+its own Agent configuration, KnowledgeDocs, Tools, EscalationRules, and
+the Calls + CallTurns + CallToolCalls produced when callers interact with
+that workspace's agent.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Optional
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(32), default="active")
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    memberships: Mapped[list["WorkspaceMember"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    members: Mapped[list["WorkspaceMember"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    agents: Mapped[list["Agent"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    knowledge_docs: Mapped[list["KnowledgeDoc"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    tools: Mapped[list["Tool"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    escalation_rules: Mapped[list["EscalationRule"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+    calls: Mapped[list["Call"]] = relationship(
+        back_populates="workspace", cascade="all, delete-orphan"
+    )
+
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+    __table_args__ = (UniqueConstraint("user_id", "workspace_id", name="uq_member_user_workspace"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(32))  # owner | admin | viewer
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped[User] = relationship(back_populates="memberships")
+    workspace: Mapped[Workspace] = relationship(back_populates="members")
+
+
+class Agent(Base):
+    __tablename__ = "agents"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(255))
+    persona_prompt: Mapped[str] = mapped_column(Text, default="")
+    greeting: Mapped[str] = mapped_column(Text, default="")
+    voice_id: Mapped[str] = mapped_column(String(128), default="")
+    voice_provider: Mapped[str] = mapped_column(String(64), default="cartesia")
+    llm_model: Mapped[str] = mapped_column(String(128), default="llama-3.1-8b-instant")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+    workspace: Mapped[Workspace] = relationship(back_populates="agents")
+    calls: Mapped[list["Call"]] = relationship(back_populates="agent")
+
+
+class KnowledgeDoc(Base):
+    __tablename__ = "knowledge_docs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(512))
+    content_type: Mapped[str] = mapped_column(String(128), default="")
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(32), default="processing")  # processing|ready|failed
+    qdrant_collection: Mapped[str] = mapped_column(String(128), default="")
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    uploaded_by_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="knowledge_docs")
+
+
+class Tool(Base):
+    __tablename__ = "tools"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(Text, default="")
+    webhook_url: Mapped[str] = mapped_column(String(1024))
+    schema_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    auth_header: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="tools")
+
+
+class EscalationRule(Base):
+    __tablename__ = "escalation_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    trigger: Mapped[str] = mapped_column(String(64))  # keyword | sentiment | explicit_request
+    trigger_value: Mapped[str] = mapped_column(String(512), default="")
+    action: Mapped[str] = mapped_column(String(64))  # transfer | voicemail | callback
+    action_target: Mapped[str] = mapped_column(String(512), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="escalation_rules")
+
+
+class Call(Base):
+    __tablename__ = "calls"
+    __table_args__ = (
+        Index("ix_calls_workspace_started", "workspace_id", "started_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    agent_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
+    )
+    livekit_room_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    caller_identity: Mapped[str] = mapped_column(String(255))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="active")  # active|completed|failed|escalated
+    outcome: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    escalation_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recording_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    workspace: Mapped[Workspace] = relationship(back_populates="calls")
+    agent: Mapped[Optional[Agent]] = relationship(back_populates="calls")
+    turns: Mapped[list["CallTurn"]] = relationship(
+        back_populates="call", cascade="all, delete-orphan", order_by="CallTurn.ts_ms"
+    )
+    tool_calls: Mapped[list["CallToolCall"]] = relationship(
+        back_populates="call", cascade="all, delete-orphan", order_by="CallToolCall.ts_ms"
+    )
+
+
+class CallTurn(Base):
+    __tablename__ = "call_turns"
+    __table_args__ = (Index("ix_call_turns_call_ts", "call_id", "ts_ms"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    call_id: Mapped[int] = mapped_column(ForeignKey("calls.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))  # user | agent
+    text: Mapped[str] = mapped_column(Text)
+    ts_ms: Mapped[int] = mapped_column(Integer)
+    audio_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    call: Mapped[Call] = relationship(back_populates="turns")
+
+
+class CallToolCall(Base):
+    __tablename__ = "call_tool_calls"
+    __table_args__ = (Index("ix_call_tool_calls_call_ts", "call_id", "ts_ms"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    call_id: Mapped[int] = mapped_column(ForeignKey("calls.id", ondelete="CASCADE"), index=True)
+    tool_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("tools.id", ondelete="SET NULL"), nullable=True
+    )
+    tool_name: Mapped[str] = mapped_column(String(128))
+    args_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    result_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    ts_ms: Mapped[int] = mapped_column(Integer)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="success")  # success | error
+
+    call: Mapped[Call] = relationship(back_populates="tool_calls")

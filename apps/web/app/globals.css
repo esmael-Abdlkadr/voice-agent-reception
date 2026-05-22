@@ -3,30 +3,56 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Manrope", "Aptos", "Satoshi", "Segoe UI", sans-serif;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+html,
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 4% 12%, rgba(217, 242, 230, 0.95), transparent 26rem),
-    radial-gradient(circle at 92% 8%, rgba(239, 111, 97, 0.15), transparent 34rem),
-    linear-gradient(135deg, #eef8f1 0%, #f8faf5 44%, #fff4ee 100%);
-  color: #17201b;
   min-height: 100vh;
+  background-color: #09090b;
+  color: #f4f4f5;
 }
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
+  color: inherit;
+  background: transparent;
 }
 
-.focus-ring {
-  @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss;
+::selection {
+  background: rgba(34, 211, 238, 0.35);
+}
+
+/* Global focus-visible: only when keyboard users tab to something */
+:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Custom scrollbar that fits the dark palette */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.6);
+  border-radius: 999px;
+  border: 2px solid #09090b;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 82, 91, 0.8);
 }
