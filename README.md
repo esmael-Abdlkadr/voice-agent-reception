@@ -1,196 +1,185 @@
-# VoiceAgentOS Platform
+# VoiceOps
 
-Open-source AI voice assistant platform for portfolio and client work. The platform runs locally with Postgres persistence and provides APIs for AI reception, appointment booking, outbound campaigns, RAG-style knowledge answers, transcripts, summaries, analytics, SIP configuration, AMD, voicemail templates, recordings, and runtime settings without paid APIs by default.
+A multi-tenant voice-AI operations console for customer-support agencies.
 
-## What It Supports
+Run AI voice agents for your clients, watch live calls roll in, configure
+personas, ground answers in their knowledge base, give agents webhook tools
+to call mid-conversation, and review every transcript — from a single
+console.
 
-- Inbound receptionist flow for BrightCare Dental.
-- Browser voice or typed fallback in the playground.
-- Twilio inbound phone receptionist flow with TwiML speech gathering.
-- Appointment booking and call transcript logging.
-- Outbound campaign simulation with local outcomes.
-- Knowledge-base answers from seeded FAQ content.
-- SIP trunk configuration and queued outbound call requests.
-- Answer machine detection configuration and local analysis.
-- Voicemail template management.
-- Agent profiles and orchestration configuration.
-- Recording metadata and cost estimates.
-- Auth and role-based authorization for platform_admin, campaign_operator, and analyst roles.
-- Dashboard metrics for calls, appointments, outcomes, and local platform cost.
-- Production upgrade path for LiveKit, SIP, AMD, and voicemail drop.
-
-## Docker Setup And Run
-
-Project root:
-
-```bash
-cd /Users/apple/Documents/Codex/2026-05-04/well-i-want-to-start-new/voice-agent-demo
+```
+   ░▒▒▒▒▒▒▒░     ░▒▒▒░     ░▒▒▒▒▒▒▒▒▒▒░     ░▒▒▒░     ░▒▒▒▒▒▒▒░
+        Live   ·   Calls   ·   Agent   ·   Knowledge   ·   Tools
 ```
 
-First-time setup:
+---
 
-```bash
- 
-docker compose up --build -d
+## What's in the box
+
+**Per-workspace product surface**
+
+- **Live** — Real-time view of active calls, today's snapshot, recent
+  outcomes. Updates over server-sent events; no polling.
+- **Calls** — Intercom-style list + transcript pane with tool-call
+  timeline, deep-linkable URLs.
+- **Agent** — Configure persona prompt, greeting, voice (Cartesia), LLM
+  model (Groq). Browser-based "Test call" panel right next to the form.
+- **Knowledge** — Upload `.txt` / `.md` / `.pdf`. Chunked and embedded
+  locally with `sentence-transformers`, stored in Qdrant. Inline search
+  test panel to verify retrieval quality.
+- **Tools** — Define webhooks the agent can call mid-conversation (order
+  lookups, account details, ticket creation). Each tool has a Live test
+  panel that fires a sample request and shows the raw response.
+- **Analytics** — 7d / 30d / 90d rollups: call volume, average duration,
+  completion rate, daily breakdown, status distribution, top tools used.
+
+**Built into every call**
+
+- `search_knowledge_base` — RAG over the workspace's uploaded docs.
+- `escalate_to_human` — Caller asks for a human → agent reads a handoff
+  line → call persists with status `escalated` and a reason captured by
+  the LLM.
+
+---
+
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Voice transport | LiveKit Cloud + WebRTC | Browser-first today, swap in SIP for real phone calls without changing the worker |
+| STT | Deepgram nova-3 | ~150 ms streaming, the latency budget needs it |
+| LLM | Groq (Llama 3.1 / 3.3) | ~500 tok/s makes tool-using multi-turn dialogue feel real-time |
+| TTS | Cartesia sonic-2 | ~90 ms first-byte; the agent doesn't sound robotic |
+| Embeddings | sentence-transformers (`all-MiniLM-L6-v2`) | Runs locally on a Mac CPU; no extra API key |
+| Vector store | Qdrant | Per-workspace collection, payload-filterable |
+| Relational | Postgres + SQLAlchemy 2.0 + Alembic | Real foreign keys for workspaces → agents → calls → turns |
+| Object store | MinIO | Recordings (post-V1) |
+| API | FastAPI | Sync routes for CRUD, async SSE for live, asyncio bridge for the worker |
+| Frontend | Next.js 14 (App Router) + Tailwind | Dark theme, Inter + JetBrains Mono, custom SVG charts |
+
+---
+
+## Architecture
+
+```
+                           ┌─────────────────┐
+                           │  Browser (web)  │
+                           │  Next.js 14     │
+                           └────┬─────────┬──┘
+                                │ HTTP +  │ EventSource (SSE)
+                                │ JSON    │
+                                ▼         ▼
+                           ┌─────────────────┐         ┌──────────────────┐
+                           │  API (FastAPI)  │◄────────│ Voice worker     │
+                           │                 │  HTTP   │ (LiveKit Agents) │
+                           │  Auth · CRUD ·  │         │  fetches Agent + │
+                           │  SSE · upsert   │         │  Tools + KB; runs│
+                           │  pub/sub        │         │  STT→LLM→TTS loop│
+                           └────┬─────┬──────┘         └────────┬─────────┘
+                                │     │                         │
+                          ┌─────▼─┐ ┌─▼─────────┐               │ WebRTC
+                          │ Pg    │ │  Qdrant   │               │
+                          │       │ │ (KB chunks)               ▼
+                          └───────┘ └───────────┘     ┌──────────────────┐
+                                                     │ LiveKit Cloud     │
+                                                     │ (SFU + dispatch)  │
+                                                     └──────────────────┘
+                                                              ▲
+                                                              │ caller's mic
+                                                       ┌──────┴───────┐
+                                                       │  Caller      │
+                                                       │  (browser)   │
+                                                       └──────────────┘
 ```
 
-Set `GROQ_API_KEY` in `.env` before live AI calls. Docker Compose now starts only local infrastructure; the LLM runs through Groq.
+The voice worker authenticates back to the API using the operator's bearer
+token, embedded in the LiveKit participant metadata when the dashboard
+mints the room token. On session start the worker POSTs a `Call` row
+(status `active`), which the API broadcasts to every SSE subscriber so
+the dashboard reflects the new call within a second. At session end the
+worker POSTs again with the full transcript + tool-call timeline; the
+same upsert flips the status to `completed` (or `escalated` if the LLM
+called `escalate_to_human`).
 
-Run or restart infra services:
+---
 
-```bash
-docker compose up -d
-docker compose ps
-```
+## Quick start
 
-Docker services started by compose:
-
-- `postgres` on `5432`
-- `qdrant` on `6333`
-- `minio` on `9000/9001`
-
-## Run API And Web
-
-Backend API:
+You'll need: Docker, Node 18+, Python 3.12+.
 
 ```bash
-cd apps/api
+# 1. Infrastructure
+cp .env.example .env
+# fill in: LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET,
+#         DEEPGRAM_API_KEY, CARTESIA_API_KEY, GROQ_API_KEY
+docker compose up -d   # Postgres, Qdrant, MinIO
+
+# 2. API
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-DATABASE_URL=postgresql://voice_agent:voice_agent@localhost:5432/voice_agent_demo \
-PYTHONPATH=. .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8007 --reload
-```
+source .venv/bin/activate
+pip install -r apps/api/requirements.txt
+( cd apps/api && PYTHONPATH=. alembic upgrade head )
+( cd apps/api && PYTHONPATH=. uvicorn app.main:app --reload )
 
-In another terminal:
+# 3. Voice worker (separate venv — it's heavy)
+( cd apps/voice-agent
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  python -m app.agent download-files
+  python -m app.agent dev )
 
-```bash
-cd /Users/apple/Documents/Codex/2026-05-04/well-i-want-to-start-new/voice-agent-demo
+# 4. Web
 npm install
-npm run dev
+npm --prefix apps/web run dev
 ```
 
-URLs:
+Open **http://localhost:3000**. Sign in with the seeded admin shown on
+the login screen, create a workspace, configure an agent, upload a doc to
+Knowledge, and click "Start call" on the Agent page.
 
-- Web app: `http://localhost:3000`
-- Swagger docs: `http://127.0.0.1:8007/docs`
+---
 
-LLM runtime notes:
+## Repository layout
 
-- Default backend LLM provider is `groq`.
-- Default model is `llama-3.1-8b-instant`.
-- Set `GROQ_API_KEY` in `.env` before testing live LLM calls.
-- Tests can still force deterministic mode with `VOICE_AGENT_DETERMINISTIC=true`.
-- LLM status endpoint: `GET /llm/health` (requires authenticated user role).
-- Groq model endpoints: `GET /llm/models` and `POST /llm/chat`.
-- Knowledge grounded answer endpoint: `POST /knowledge/answer`.
+```
+apps/
+  api/                FastAPI service · routes for auth, workspaces,
+                      agents, knowledge, tools, calls, events (SSE),
+                      analytics, livekit token. SQLAlchemy 2.0 +
+                      Alembic migrations.
+  voice-agent/        LiveKit Agents worker · per-call dynamic tool
+                      registration, KB-grounded answers, transcript
+                      capture, escalation.
+  web/                Next.js 14 App Router · dark Linear/Vercel-style
+                      dashboard. Workspace switcher, Live, Calls,
+                      Agent, Knowledge, Tools, Analytics.
 
-## Twilio Inbound Phone Setup
-
-This integration uses Twilio Programmable Voice webhooks and TwiML `<Gather>` for a turn-based phone receptionist flow. It is designed for local testing with fake patient data.
-
-Add these values to `.env`:
-
-```bash
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-PUBLIC_WEBHOOK_BASE_URL=
-TWILIO_VALIDATE_WEBHOOKS=false
+packages/             Reserved.
+infra/                Local data volumes.
+docker-compose.yml    Postgres · Qdrant · MinIO.
+.env.example          Full env contract.
 ```
 
-Local test flow:
+---
 
-```bash
-cd /Users/apple/Documents/Codex/2026-05-04/well-i-want-to-start-new/voice-agent-demo/apps/api
-DATABASE_URL=postgresql://voice_agent:voice_agent@localhost:5432/voice_agent_demo \
-PYTHONPATH=. uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
+## What's not in V1
 
-In another terminal:
+These are intentional cuts, not bugs:
 
-```bash
-ngrok http 8000
-```
+- **Real phone calls** — LiveKit-only for now; SIP trunk for inbound PSTN
+  would slot under the same worker.
+- **Multi-clinic / multi-region** — Single-process API. Pub/sub is
+  in-memory; we'll move to Redis when we need to.
+- **Recording playback** — The MinIO container is up but recording
+  upload/storage isn't wired yet.
+- **HIPAA / SOC 2** — Development-grade. Production deployments would
+  need encryption-at-rest configuration, audit logging, and a real auth
+  story (JWT or sessions instead of in-memory bearer tokens).
 
-Copy the HTTPS forwarding URL from ngrok and set:
+---
 
-```bash
-PUBLIC_WEBHOOK_BASE_URL=https://your-ngrok-domain.ngrok.app
-```
+## License
 
-In the Twilio Console, configure your Twilio phone number Voice webhook:
-
-```text
-POST https://your-ngrok-domain.ngrok.app/twilio/voice/inbound
-```
-
-Optional status callback:
-
-```text
-POST https://your-ngrok-domain.ngrok.app/twilio/voice/status
-```
-
-Then call the Twilio number from a verified test phone number. The call should create a Twilio call session, log transcript messages, and create appointment requests with `status=requested`.
-
-Twilio trial notes:
-
-- Trial accounts can require verified caller/recipient numbers.
-- Trial calls can play a Twilio trial message.
-- Trial calls and minutes are limited.
-- Keep `TWILIO_VALIDATE_WEBHOOKS=false` for first ngrok tests, then enable it after your public webhook URL is stable.
-
-Safety note:
-
-- This local project is not HIPAA-ready.
-- Use fake patient data during development.
-- Production healthcare use requires compliance review, BAA-ready vendors, secure deployment, retention controls, audit logs, and strict access policies.
-
-## Seed Credentials
-
-API seeded admin user:
-
-- Email: `admin@voiceagent.local`
-- Password: `admin123`
-- Role: `platform_admin`
-
-Notes:
-
-- `campaign_operator` and `analyst` users are not seeded by default.
-- Create additional users from Swagger using `POST /users` after logging in as admin.
-
-Infrastructure default credentials:
-
-- Postgres
-- User: `voice_agent`
-- Password: `voice_agent`
-- Database: `voice_agent_demo`
-
-- MinIO
-- Access key: `voiceagent`
-- Secret key: `voiceagentdemo`
-- Console: `http://127.0.0.1:9001`
-
-## Reset Stale Docker Data
-
-If Docker shows old data, remove persisted volumes and start fresh:
-
-```bash
-cd /Users/apple/Documents/Codex/2026-05-04/well-i-want-to-start-new/voice-agent-demo
-docker compose down --remove-orphans
-rm -rf infra/docker/postgres-data infra/docker/qdrant-data infra/docker/minio-data infra/docker/ollama-data
-docker compose up --build -d
-```
-
-Then restart the API command above so fresh seed data is loaded.
-
-## Verification
-
-```bash
-BASE=http://127.0.0.1:8000 scripts/curl-test-api.sh
-npm run test:api
-npm --workspace apps/web run lint
-npm --workspace apps/web run test
-npm --workspace apps/web run build
-```
-
-The backend uses Postgres by default through `DATABASE_URL`. Automated tests set `VOICE_AGENT_STORAGE=memory` explicitly so they can run without a Docker daemon, but normal app development should use the Postgres service from Docker Compose.
+Source-available for reading and reference. Not yet open-source licensed
+for production redistribution.
