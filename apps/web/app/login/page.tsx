@@ -100,12 +100,21 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-10 border-t border-zinc-900 pt-5">
-            <p className="font-mono text-[11px] text-zinc-600">
-              dev seed
-            </p>
-            <p className="mt-1 font-mono text-[11px] text-zinc-500">
-              admin@voiceops.dev · voiceops-dev
-            </p>
+            <p className="font-mono text-[11px] text-zinc-600">dev seed accounts</p>
+            <div className="mt-1.5 space-y-1 font-mono text-[11px] text-zinc-500">
+              <p>
+                <span className="text-zinc-400">superuser</span> · admin@voiceops.dev ·
+                voiceops-dev
+              </p>
+              <p>
+                <span className="text-zinc-400">admin</span> · manager@voiceops.dev ·
+                manager-dev
+              </p>
+              <p>
+                <span className="text-zinc-400">viewer</span> · viewer@voiceops.dev ·
+                viewer-dev
+              </p>
+            </div>
           </div>
         </div>
       </section>

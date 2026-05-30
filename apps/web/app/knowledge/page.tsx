@@ -13,19 +13,20 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyBanner } from "@/components/read-only-banner";
 import { api } from "@/lib/api";
 import type { KnowledgeDoc, KnowledgeSearchHit, KnowledgeStatus } from "@/lib/types";
 
 export default function KnowledgePage() {
   return (
-    <AppShell>
+    <AppShell requires="admin">
       <KnowledgeView />
     </AppShell>
   );
 }
 
 function KnowledgeView() {
-  const { currentWorkspaceId, workspaces, openNewWorkspaceModal } = useAuth();
+  const { currentWorkspaceId, workspaces, openNewWorkspaceModal, canEdit } = useAuth();
   const [docs, setDocs] = useState<KnowledgeDoc[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,28 +129,30 @@ function KnowledgeView() {
             locally and stored in this workspace's Qdrant collection.
           </p>
         </div>
-        <div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".txt,.md,.pdf"
-            className="hidden"
-            onChange={onPickFile}
-          />
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 rounded-lg bg-accent-400 px-3.5 py-2 text-sm font-medium text-zinc-950 transition hover:bg-accent-300 disabled:opacity-60"
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
-            {uploading ? "Uploading..." : "Upload document"}
-          </button>
-        </div>
+        {canEdit && (
+          <div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".txt,.md,.pdf"
+              className="hidden"
+              onChange={onPickFile}
+            />
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 rounded-lg bg-accent-400 px-3.5 py-2 text-sm font-medium text-zinc-950 transition hover:bg-accent-300 disabled:opacity-60"
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {uploading ? "Uploading..." : "Upload document"}
+            </button>
+          </div>
+        )}
       </header>
 
       {error && (
@@ -157,6 +160,8 @@ function KnowledgeView() {
           {error}
         </p>
       )}
+
+      <ReadOnlyBanner />
 
       <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
         <aside className="space-y-1.5">

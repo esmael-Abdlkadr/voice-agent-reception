@@ -75,10 +75,13 @@ def _extract_text(filename: str, content: bytes) -> str:
     return content.decode("utf-8", errors="replace")
 
 
-def _chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list[str]:
-    """Plain character-window chunking with overlap.
+def _chunk_text(text: str, chunk_size: int = 450, overlap: int = 80) -> list[str]:
+    """Character-window chunking with overlap.
 
-    Adequate for V1; swap to recursive/semantic splitting later.
+    Smaller windows keep each chunk topically focused, which matters for
+    short factual lookups (hours, pricing) where a big chunk spanning
+    several sections dilutes the embedding. Adequate for V1; swap to
+    recursive/semantic splitting later.
     """
     text = re.sub(r"\s+", " ", text).strip()
     if not text:

@@ -63,7 +63,8 @@ def list_workspaces(
 @router.post("", response_model=WorkspaceDetail, status_code=status.HTTP_201_CREATED)
 def create_workspace(
     payload: WorkspaceCreate,
-    user: User = Depends(auth_service.current_user),
+    # Onboarding a new client workspace is an agency-platform-admin action.
+    user: User = Depends(auth_service.require_superuser),
     session: Session = Depends(get_session),
 ) -> WorkspaceDetail:
     requested_slug = (payload.slug or _slugify(payload.name)).strip()

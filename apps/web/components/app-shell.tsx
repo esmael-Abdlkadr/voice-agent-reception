@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import {
-  BarChart3,
   BookOpen,
   Bot,
+  CalendarDays,
   LogOut,
+  Mic,
+  Phone,
   PhoneCall,
   Radio,
   Settings,
@@ -16,18 +18,36 @@ import {
 import { useAuth } from "@/components/auth-provider";
 import { NewWorkspaceModal } from "@/components/new-workspace-modal";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
+import type { WorkspaceRole } from "@/lib/types";
 
-const navItems = [
-  { href: "/", label: "Live", icon: Radio },
-  { href: "/calls", label: "Calls", icon: PhoneCall },
-  { href: "/agent", label: "Agent", icon: Bot },
-  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { href: "/tools", label: "Tools", icon: Wrench },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings, disabled: true },
+// minRole = lowest workspace role that may see this page. Config surfaces
+// require admin; operational/monitoring pages are open to viewers.
+const navItems: {
+  href: string;
+  label: string;
+  icon: typeof Radio;
+  minRole: WorkspaceRole;
+  disabled?: boolean;
+}[] = [
+  { href: "/", label: "Live", icon: Radio, minRole: "admin" },
+  { href: "/call", label: "Test Call", icon: Mic, minRole: "viewer" },
+  { href: "/calls", label: "Calls", icon: PhoneCall, minRole: "viewer" },
+  { href: "/reservations", label: "Reservations", icon: CalendarDays, minRole: "viewer" },
+  { href: "/agent", label: "Agent", icon: Bot, minRole: "admin" },
+  { href: "/numbers", label: "Numbers", icon: Phone, minRole: "admin" },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen, minRole: "admin" },
+  { href: "/tools", label: "Tools", icon: Wrench, minRole: "admin" },
+  { href: "/settings", label: "Settings", icon: Settings, minRole: "owner", disabled: true },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  requires,
+}: {
+  children: React.ReactNode;
+  /** Minimum workspace role required to view this page. */
+  requires?: WorkspaceRole;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const {
@@ -36,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     logout,
     refresh,
     setCurrentWorkspaceId,
+    hasAccess,
     newWorkspaceModalOpen,
     closeNewWorkspaceModal,
   } = useAuth();
@@ -43,6 +64,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "anonymous") router.replace("/login");
   }, [router, status]);
+
+  // If the role can't see this page, send them to their first allowed page
+  // (e.g. a viewer landing on "/" Live goes to Calls) instead of a dead end.
+  const firstAllowed = navItems.find((i) => !i.disabled && hasAccess(i.minRole))?.href;
+  const blocked = requires !== undefined && !hasAccess(requires);
+  useEffect(() => {
+    if (status === "authenticated" && blocked && firstAllowed && pathname === "/") {
+      router.replace(firstAllowed);
+    }
+  }, [status, blocked, firstAllowed, pathname, router]);
 
   if (status !== "authenticated") {
     return (
@@ -53,6 +84,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  const visibleNav = navItems.filter((i) => hasAccess(i.minRole));
+  const accessDenied = requires !== undefined && !hasAccess(requires);
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -73,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mb-2 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-500">
             Workspace
           </div>
-          {navItems.map((item) => {
+          {visibleNav.map((item) => {
             const active =
               item.href === "/"
                 ? pathname === "/"
@@ -135,7 +169,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 bg-zinc-950">{children}</main>
+      <main className="min-w-0 flex-1 bg-zinc-950">
+        {accessDenied ? (
+          <div className="mx-auto max-w-2xl px-10 pb-16 pt-10">
+            <div className="grid place-items-center rounded-2xl border border-zinc-800 bg-zinc-900/30 py-20 text-center">
+              <div className="mb-3 grid h-11 w-11 place-items-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-500">
+                <Settings className="h-5 w-5" />
+              </div>
+              <h2 className="text-base font-medium text-zinc-200">
+                You don't have access to this page
+              </h2>
+              <p className="mt-1 max-w-sm text-sm text-zinc-500">
+                This is a configuration area for workspace admins and owners.
+                Your role here is read-only.
+              </p>
+              <Link
+                href="/"
+                className="mt-5 rounded-lg bg-accent-400 px-3.5 py-2 text-sm font-medium text-zinc-950 transition hover:bg-accent-300"
+              >
+                Back to Live
+              </Link>
+            </div>
+          </div>
+        ) : (
+          children
+        )}
+      </main>
 
       <NewWorkspaceModal
         open={newWorkspaceModalOpen}

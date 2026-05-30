@@ -6,11 +6,13 @@ import { useAuth } from "@/components/auth-provider";
 
 export function WorkspaceSwitcher() {
   const {
+    user,
     workspaces,
     currentWorkspaceId,
     setCurrentWorkspaceId,
     openNewWorkspaceModal,
   } = useAuth();
+  const canCreateWorkspace = Boolean(user?.is_superuser);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -111,19 +113,23 @@ export function WorkspaceSwitcher() {
               );
             })
           )}
-          <div className="my-1 border-t border-zinc-800" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              openNewWorkspaceModal();
-            }}
-            className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/60"
-          >
-            <Plus className="h-4 w-4 text-zinc-500" />
-            New workspace
-          </button>
+          {canCreateWorkspace && (
+            <>
+              <div className="my-1 border-t border-zinc-800" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  openNewWorkspaceModal();
+                }}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/60"
+              >
+                <Plus className="h-4 w-4 text-zinc-500" />
+                New workspace
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

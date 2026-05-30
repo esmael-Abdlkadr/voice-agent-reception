@@ -9,6 +9,44 @@ export type AuthUser = {
 
 export type WorkspaceRole = "owner" | "admin" | "viewer";
 
+export type PhoneNumber = {
+  id: number;
+  e164: string;
+  label: string;
+  provider: string;
+  workspace_id: number;
+  agent_id: number | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type PhoneNumberCreate = {
+  e164: string;
+  label?: string;
+  agent_id?: number | null;
+};
+
+export type PhoneNumberUpdate = {
+  label?: string;
+  agent_id?: number | null;
+  is_active?: boolean;
+};
+
+export type Reservation = {
+  id: number;
+  workspace_id: number;
+  guest_name: string;
+  guest_phone: string | null;
+  check_in: string;
+  check_out: string;
+  room_type: string;
+  num_guests: number;
+  notes: string;
+  status: "requested" | "confirmed" | "cancelled";
+  call_id: number | null;
+  created_at: string;
+};
+
 export type WorkspaceSummary = {
   id: number;
   slug: string;
@@ -126,21 +164,6 @@ export type ToolTestResponse = {
   response_body: string;
   error: string | null;
   duration_ms: number;
-};
-
-export type WorkspaceAnalytics = {
-  window_days: number;
-  total_calls: number;
-  avg_duration_ms: number | null;
-  completion_rate: number;
-  by_status: {
-    completed: number;
-    active: number;
-    escalated: number;
-    failed: number;
-  };
-  by_day: { date: string; count: number }[];
-  top_tools: { tool_name: string; count: number }[];
 };
 
 export type KnowledgeStatus = "processing" | "ready" | "failed";

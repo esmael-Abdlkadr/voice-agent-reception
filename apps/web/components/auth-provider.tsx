@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { api, clearStoredToken, getStoredToken, storeToken } from "@/lib/api";
-import type { AuthUser, WorkspaceSummary } from "@/lib/types";
+import type { AuthUser, WorkspaceRole, WorkspaceSummary } from "@/lib/types";
 
 type AuthStatus = "checking" | "authenticated" | "anonymous";
 
@@ -19,6 +19,9 @@ type AuthContextValue = {
   workspaces: WorkspaceSummary[];
   currentWorkspaceId: number | null;
   setCurrentWorkspaceId: (id: number | null) => void;
+  currentRole: WorkspaceRole | null;
+  canEdit: boolean;
+  hasAccess: (minRole: WorkspaceRole) => boolean;
   newWorkspaceModalOpen: boolean;
   openNewWorkspaceModal: () => void;
   closeNewWorkspaceModal: () => void;
@@ -104,6 +107,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [applyContext]
   );
 
+  const currentRole: WorkspaceRole | null =
+    workspaces.find((w) => w.id === currentWorkspaceId)?.role ?? null;
+  const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 1, admin: 2, owner: 3 };
+  // Superusers clear every gate; otherwise compare the current workspace role.
+  const hasAccess = useCallback(
+    (minRole: WorkspaceRole) => {
+      if (user?.is_superuser) return true;
+      if (!currentRole) return false;
+      return ROLE_RANK[currentRole] >= ROLE_RANK[minRole];
+    },
+    // currentRole derives from workspaces+currentWorkspaceId; both are deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.is_superuser, currentRole]
+  );
+  const canEdit = hasAccess("admin");
+
   const value = useMemo(
     () => ({
       status,
@@ -111,6 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       workspaces,
       currentWorkspaceId,
       setCurrentWorkspaceId,
+      currentRole,
+      canEdit,
+      hasAccess,
       newWorkspaceModalOpen,
       openNewWorkspaceModal,
       closeNewWorkspaceModal,
@@ -124,6 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       workspaces,
       currentWorkspaceId,
       setCurrentWorkspaceId,
+      currentRole,
+      canEdit,
+      hasAccess,
       newWorkspaceModalOpen,
       openNewWorkspaceModal,
       closeNewWorkspaceModal,

@@ -5,15 +5,18 @@ import type {
   CallDetail,
   CallSummary,
   CurrentUserContext,
+  Reservation,
   KnowledgeDoc,
   KnowledgeSearchResponse,
   LiveKitTokenResponse,
   LoginResponse,
+  PhoneNumber,
+  PhoneNumberCreate,
+  PhoneNumberUpdate,
   Tool,
   ToolCreate,
   ToolTestResponse,
   ToolUpdate,
-  WorkspaceAnalytics,
   WorkspaceDetail,
   WorkspaceMember,
   WorkspaceSummary,
@@ -175,10 +178,41 @@ export const api = {
       }
     ),
 
-  // Analytics
-  workspaceAnalytics: (workspaceId: number, days = 30) =>
-    request<WorkspaceAnalytics>(
-      `/workspaces/${workspaceId}/analytics?days=${days}`
+  // Phone numbers
+  listPhoneNumbers: (workspaceId: number) =>
+    request<PhoneNumber[]>(`/workspaces/${workspaceId}/phone-numbers`),
+  createPhoneNumber: (workspaceId: number, payload: PhoneNumberCreate) =>
+    request<PhoneNumber>(`/workspaces/${workspaceId}/phone-numbers`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updatePhoneNumber: (
+    workspaceId: number,
+    numberId: number,
+    payload: PhoneNumberUpdate
+  ) =>
+    request<PhoneNumber>(`/workspaces/${workspaceId}/phone-numbers/${numberId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deletePhoneNumber: (workspaceId: number, numberId: number) =>
+    request<void>(`/workspaces/${workspaceId}/phone-numbers/${numberId}`, {
+      method: "DELETE",
+    }),
+
+  // Reservations
+  listReservations: (workspaceId: number, upcomingOnly = false) =>
+    request<Reservation[]>(
+      `/workspaces/${workspaceId}/reservations?upcoming_only=${upcomingOnly}`
+    ),
+  updateReservation: (
+    workspaceId: number,
+    reservationId: number,
+    payload: { status?: "requested" | "confirmed" | "cancelled" }
+  ) =>
+    request<Reservation>(
+      `/workspaces/${workspaceId}/reservations/${reservationId}`,
+      { method: "PATCH", body: JSON.stringify(payload) }
     ),
 
   // LiveKit

@@ -8,12 +8,13 @@ that workspace's agent.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -155,6 +156,30 @@ class Tool(Base):
     workspace: Mapped[Workspace] = relationship(back_populates="tools")
 
 
+class PhoneNumber(Base):
+    """A PSTN number (E.164) routed to a workspace's agent.
+
+    When a call arrives over SIP, the worker reads the dialed number and
+    looks it up here to decide which workspace + agent should answer.
+    The number is globally unique (one number routes to exactly one agent).
+    """
+
+    __tablename__ = "phone_numbers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    e164: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(255), default="")
+    provider: Mapped[str] = mapped_column(String(32), default="twilio")
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    agent_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 class EscalationRule(Base):
     __tablename__ = "escalation_rules"
 
@@ -180,6 +205,11 @@ class Call(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    # The dashboard user who initiated this call (browser test calls). NULL for
+    # inbound phone calls with no operator — those are workspace-level.
+    owner_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     agent_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
@@ -235,3 +265,37 @@ class CallToolCall(Base):
     status: Mapped[str] = mapped_column(String(16), default="success")  # success | error
 
     call: Mapped[Call] = relationship(back_populates="tool_calls")
+
+class Reservation(Base):
+    """A lightweight hotel reservation REQUEST taken by the voice agent.
+
+    No live inventory: the agent records the guest's request (dates, room
+    type, party size) and staff confirm it. check_in/check_out are calendar
+    dates (a stay spans the nights between them).
+    """
+
+    __tablename__ = "reservations"
+    __table_args__ = (Index("ix_reservations_ws_checkin", "workspace_id", "check_in"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    # The dashboard user whose call produced this reservation. NULL for
+    # inbound phone calls with no operator — those are workspace-level.
+    owner_user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    guest_name: Mapped[str] = mapped_column(String(255))
+    guest_phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    check_in: Mapped[date] = mapped_column(Date, index=True)
+    check_out: Mapped[date] = mapped_column(Date)
+    room_type: Mapped[str] = mapped_column(String(128), default="")
+    num_guests: Mapped[int] = mapped_column(Integer, default=1)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default="requested")  # requested|confirmed|cancelled
+    call_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+

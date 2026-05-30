@@ -13,19 +13,20 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyBanner } from "@/components/read-only-banner";
 import { api } from "@/lib/api";
 import type { Tool, ToolCreate, ToolTestResponse } from "@/lib/types";
 
 export default function ToolsPage() {
   return (
-    <AppShell>
+    <AppShell requires="admin">
       <ToolsView />
     </AppShell>
   );
 }
 
 function ToolsView() {
-  const { currentWorkspaceId, workspaces, openNewWorkspaceModal } = useAuth();
+  const { currentWorkspaceId, workspaces, openNewWorkspaceModal, canEdit } = useAuth();
   const [tools, setTools] = useState<Tool[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +97,7 @@ function ToolsView() {
             when to invoke it.
           </p>
         </div>
-        {tools.length > 0 && (
+        {tools.length > 0 && canEdit && (
           <button
             type="button"
             onClick={() => setSelectedId(-1)}
@@ -107,6 +108,8 @@ function ToolsView() {
           </button>
         )}
       </header>
+
+      <ReadOnlyBanner />
 
       {error && (
         <p className="mb-5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">

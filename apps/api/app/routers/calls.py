@@ -12,8 +12,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import Agent, Call, CallToolCall, CallTurn, Workspace
-from app.schemas import CallCreate, CallDetail, CallSummary
+from app.models import Agent, Call, CallToolCall, CallTurn, User, Workspace
+from app.schemas import CallCreate, CallDetail, CallStreamEvent, CallSummary
 from app.services import auth_service
 from app.services.events import publish_threadsafe
 
@@ -33,18 +33,15 @@ def _publish_call(workspace_id: int, call: Call) -> None:
 @router.get("", response_model=list[CallSummary])
 def list_calls(
     workspace: Workspace = Depends(auth_service.require_workspace_role("viewer")),
+    viewer: "User" = Depends(auth_service.current_user),
     session: Session = Depends(get_session),
 ) -> list[CallSummary]:
-    calls = (
-        session.execute(
-            select(Call)
-            .where(Call.workspace_id == workspace.id)
-            .order_by(Call.started_at.desc())
-            .limit(200)
-        )
-        .scalars()
-        .all()
-    )
+    stmt = select(Call).where(Call.workspace_id == workspace.id)
+    # Managers (owner/admin/superuser) see every call in the workspace; a
+    # regular member sees only the calls they own.
+    if not auth_service.is_workspace_manager(session, viewer, workspace.id):
+        stmt = stmt.where(Call.owner_user_id == viewer.id)
+    calls = session.execute(stmt.order_by(Call.started_at.desc()).limit(200)).scalars().all()
     return [CallSummary.model_validate(c) for c in calls]
 
 
@@ -52,6 +49,7 @@ def list_calls(
 def upsert_call(
     payload: CallCreate,
     workspace: Workspace = Depends(auth_service.require_workspace_role("viewer")),
+    caller: "User | None" = Depends(auth_service.optional_user),
     session: Session = Depends(get_session),
 ) -> CallDetail:
     """Create or update a call, keyed by livekit_room_id.
@@ -78,6 +76,7 @@ def upsert_call(
     if existing is None:
         call = Call(
             workspace_id=workspace.id,
+            owner_user_id=caller.id if caller else None,
             agent_id=payload.agent_id,
             livekit_room_id=payload.livekit_room_id,
             caller_identity=payload.caller_identity,
@@ -156,3 +155,66 @@ def get_call(
     if call is None or call.workspace_id != workspace.id:
         raise HTTPException(status_code=404, detail="Call not found")
     return CallDetail.model_validate(call)
+
+
+@router.post("/stream", status_code=status.HTTP_202_ACCEPTED)
+def stream_event(
+    payload: CallStreamEvent,
+    workspace: Workspace = Depends(auth_service.require_workspace_role("viewer")),
+    session: Session = Depends(get_session),
+) -> dict:
+    """Receive a single mid-call event from the voice worker.
+
+    Turns are appended to the DB so a refresh mid-call still shows the
+    partial transcript; both turns and tool calls are fanned out over SSE
+    so the dashboard updates live. No-op (not an error) if the call row
+    doesn't exist yet — the session-start POST may not have landed.
+    """
+    call = session.execute(
+        select(Call).where(
+            Call.workspace_id == workspace.id,
+            Call.livekit_room_id == payload.livekit_room_id,
+        )
+    ).scalar_one_or_none()
+    if call is None:
+        return {"ok": False, "reason": "call_not_found"}
+
+    if payload.kind == "turn" and payload.text and payload.role:
+        session.add(
+            CallTurn(
+                call_id=call.id,
+                role=payload.role,
+                text=payload.text,
+                ts_ms=payload.ts_ms,
+                audio_ms=None,
+            )
+        )
+        session.commit()
+        publish_threadsafe(
+            {
+                "type": "call_turn",
+                "workspace_id": workspace.id,
+                "call_id": call.id,
+                "data": {
+                    "role": payload.role,
+                    "text": payload.text,
+                    "ts_ms": payload.ts_ms,
+                },
+            }
+        )
+    elif payload.kind == "tool_call" and payload.tool_name:
+        publish_threadsafe(
+            {
+                "type": "call_tool",
+                "workspace_id": workspace.id,
+                "call_id": call.id,
+                "data": {
+                    "tool_name": payload.tool_name,
+                    "status": payload.status or "success",
+                    "ts_ms": payload.ts_ms,
+                    "duration_ms": payload.duration_ms,
+                },
+            }
+        )
+
+    return {"ok": True}

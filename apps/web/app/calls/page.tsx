@@ -18,12 +18,12 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/components/auth-provider";
 import { api } from "@/lib/api";
+import { useCallStream, type StreamedTool, type StreamedTurn } from "@/lib/use-call-stream";
 import type {
   CallDetail,
   CallStatus,
   CallSummary,
   CallToolCall,
-  CallTurn,
 } from "@/lib/types";
 
 type StatusFilter = "all" | CallStatus;
@@ -105,6 +105,14 @@ function CallsView() {
     return () => window.clearInterval(handle);
   }, [reload, currentWorkspaceId]);
 
+  const refetchDetail = useCallback(() => {
+    if (selectedId === null || currentWorkspaceId === null) return;
+    api
+      .getCall(currentWorkspaceId, selectedId)
+      .then(setDetail)
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+  }, [selectedId, currentWorkspaceId]);
+
   useEffect(() => {
     if (selectedId === null || currentWorkspaceId === null) {
       setDetail(null);
@@ -117,6 +125,19 @@ function CallsView() {
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setDetailLoading(false));
   }, [selectedId, currentWorkspaceId]);
+
+  const isLive = detail?.status === "active";
+
+  // While the selected call is active, re-fetch its detail periodically so
+  // the canonical record (final status, duration, ended_at) lands shortly
+  // after hang-up. The SSE stream handles the per-turn liveness in between.
+  useEffect(() => {
+    if (!isLive) return;
+    const handle = window.setInterval(refetchDetail, 5000);
+    return () => window.clearInterval(handle);
+  }, [isLive, refetchDetail]);
+
+  const live = useCallStream(currentWorkspaceId, selectedId, isLive);
 
   const filtered = useMemo(() => {
     if (!calls) return [];
@@ -254,7 +275,11 @@ function CallsView() {
               Loading call...
             </div>
           ) : (
-            <CallDetailPanel call={detail} />
+            <CallDetailPanel
+              call={detail}
+              liveTurns={live.turns}
+              liveTools={live.tools}
+            />
           )}
         </section>
       </div>
@@ -262,12 +287,53 @@ function CallsView() {
   );
 }
 
-function CallDetailPanel({ call }: { call: CallDetail }) {
+type MergedTurn = {
+  key: string;
+  role: "user" | "agent";
+  text: string;
+  ts_ms: number;
+};
+
+function CallDetailPanel({
+  call,
+  liveTurns,
+  liveTools,
+}: {
+  call: CallDetail;
+  liveTurns: StreamedTurn[];
+  liveTools: StreamedTool[];
+}) {
+  const isLive = call.status === "active";
+
+  // Merge persisted turns with streamed ones, de-duped on (ts_ms, role).
+  const turns: MergedTurn[] = [];
+  const seen = new Set<string>();
+  for (const t of call.turns) {
+    const k = `${t.ts_ms}:${t.role}`;
+    seen.add(k);
+    turns.push({ key: `db-${t.id}`, role: t.role, text: t.text, ts_ms: t.ts_ms });
+  }
+  for (const t of liveTurns) {
+    const k = `${t.ts_ms}:${t.role}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    turns.push({ key: `live-${k}`, role: t.role, text: t.text, ts_ms: t.ts_ms });
+  }
+  turns.sort((a, b) => a.ts_ms - b.ts_ms);
+
+  const toolCount = call.tool_calls.length + (isLive ? liveTools.length : 0);
+
   return (
     <div className="grid gap-8 px-10 py-8 lg:grid-cols-[1fr_280px]">
       <article className="space-y-7">
         <header className="flex flex-wrap items-center gap-2">
           <StatusBadge status={call.status} />
+          {isLive && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-400/30 bg-accent-400/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-accent-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse-glow" />
+              Live
+            </span>
+          )}
           <h2 className="text-xl font-semibold tracking-tight text-zinc-100">
             {call.caller_identity}
           </h2>
@@ -276,33 +342,43 @@ function CallDetailPanel({ call }: { call: CallDetail }) {
           </span>
         </header>
 
-        {call.tool_calls.length > 0 && (
+        {(call.tool_calls.length > 0 || (isLive && liveTools.length > 0)) && (
           <section>
             <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Tool calls · {call.tool_calls.length}
+              Tool calls · {toolCount}
             </h3>
             <ul className="space-y-2">
               {call.tool_calls.map((tc) => (
                 <ToolCallRow key={tc.id} tc={tc} />
               ))}
+              {isLive &&
+                liveTools.map((tc, i) => (
+                  <LiveToolRow key={`live-tool-${i}`} tc={tc} />
+                ))}
             </ul>
           </section>
         )}
 
         <section>
-          <h3 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-            Transcript · {call.turns.length}{" "}
-            {call.turns.length === 1 ? "turn" : "turns"}
+          <h3 className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+            Transcript · {turns.length} {turns.length === 1 ? "turn" : "turns"}
+            {isLive && (
+              <span className="inline-flex items-center gap-1 text-accent-300">
+                <span className="h-1 w-1 rounded-full bg-accent-400 animate-pulse-glow" />
+                streaming
+              </span>
+            )}
           </h3>
-          {call.turns.length === 0 ? (
+          {turns.length === 0 ? (
             <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-10 text-center text-sm text-zinc-500">
-              No transcript captured. The caller may have hung up before
-              speaking.
+              {isLive
+                ? "Waiting for the conversation to begin…"
+                : "No transcript captured. The caller may have hung up before speaking."}
             </p>
           ) : (
             <ol className="space-y-3">
-              {call.turns.map((turn) => (
-                <TranscriptBubble key={turn.id} turn={turn} />
+              {turns.map((turn) => (
+                <TranscriptBubble key={turn.key} turn={turn} />
               ))}
             </ol>
           )}
@@ -347,7 +423,11 @@ function CallDetailPanel({ call }: { call: CallDetail }) {
   );
 }
 
-function TranscriptBubble({ turn }: { turn: CallTurn }) {
+function TranscriptBubble({
+  turn,
+}: {
+  turn: { role: "user" | "agent"; text: string; ts_ms: number };
+}) {
   const isUser = turn.role === "user";
   return (
     <li className={`flex gap-2.5 ${isUser ? "" : "flex-row-reverse"}`}>
@@ -410,6 +490,30 @@ function ToolCallRow({ tc }: { tc: CallToolCall }) {
         </p>
       )}
       <p className="mt-1 font-mono text-[10px] text-zinc-600">at {formatTs(tc.ts_ms)}</p>
+    </li>
+  );
+}
+
+function LiveToolRow({ tc }: { tc: StreamedTool }) {
+  return (
+    <li className="rounded-lg border border-accent-400/20 bg-accent-400/[0.04] p-3 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 font-mono font-medium text-zinc-100">
+          <Wrench className="h-3.5 w-3.5 text-accent-400" />
+          {tc.tool_name}
+        </span>
+        <span className="flex items-center gap-2 text-zinc-500">
+          <span className="font-mono tabular-nums">{tc.duration_ms}ms</span>
+          {tc.status === "success" ? (
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+          )}
+        </span>
+      </div>
+      <p className="mt-1 font-mono text-[10px] text-accent-300/70">
+        at {formatTs(tc.ts_ms)}
+      </p>
     </li>
   );
 }

@@ -52,7 +52,7 @@ def _current_user_from_token(
     """Re-implements the bearer-token check using a query param token. We
     can't reuse auth_service.current_user because that requires an
     Authorization header that EventSource never sends."""
-    user_id = auth_service._tokens.get(token)
+    user_id = auth_service.user_id_from_token(token)
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"

@@ -5,7 +5,7 @@ the persistence shape; these are the wire shape.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -252,36 +252,6 @@ class ToolTestResponse(BaseModel):
     duration_ms: int
 
 
-# ---------- Analytics ----------
-
-
-class AnalyticsStatusBreakdown(BaseModel):
-    completed: int = 0
-    active: int = 0
-    escalated: int = 0
-    failed: int = 0
-
-
-class AnalyticsDailyPoint(BaseModel):
-    date: str  # YYYY-MM-DD (workspace TZ = UTC for V1)
-    count: int
-
-
-class AnalyticsToolCount(BaseModel):
-    tool_name: str
-    count: int
-
-
-class WorkspaceAnalytics(BaseModel):
-    window_days: int
-    total_calls: int
-    avg_duration_ms: Optional[int]
-    completion_rate: float = Field(ge=0.0, le=1.0)
-    by_status: AnalyticsStatusBreakdown
-    by_day: list[AnalyticsDailyPoint]
-    top_tools: list[AnalyticsToolCount]
-
-
 # ---------- Calls ----------
 
 
@@ -362,3 +332,107 @@ class CallDetail(CallSummary):
     recording_url: Optional[str]
     turns: list[CallTurnPublic]
     tool_calls: list[CallToolCallPublic]
+
+
+# ---------- Live streaming (mid-call) ----------
+
+
+class CallStreamEvent(BaseModel):
+    """A single live event the worker emits while a call is in progress.
+
+    `kind="turn"` carries role/text and is persisted to the DB immediately
+    so a mid-call page refresh still shows the partial transcript. The
+    end-of-call upsert later replaces the turn list with the canonical one.
+
+    `kind="tool_call"` is published to the live stream only (the canonical
+    tool-call records are written by the end-of-call upsert).
+    """
+
+    livekit_room_id: str
+    kind: Literal["turn", "tool_call"]
+    ts_ms: int = Field(ge=0)
+    # turn
+    role: Optional[TurnRole] = None
+    text: Optional[str] = None
+    # tool_call
+    tool_name: Optional[str] = None
+    status: Optional[Literal["success", "error"]] = None
+    duration_ms: int = Field(ge=0, default=0)
+
+
+# ---------- Phone numbers ----------
+
+
+class PhoneNumberCreate(BaseModel):
+    e164: str = Field(
+        min_length=4,
+        max_length=32,
+        pattern=r"^\+[1-9]\d{1,18}$",
+        description="E.164 format, e.g. +19859996931",
+    )
+    label: str = ""
+    agent_id: Optional[int] = None
+
+
+class PhoneNumberUpdate(BaseModel):
+    label: Optional[str] = None
+    agent_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class PhoneNumberDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    e164: str
+    label: str
+    provider: str
+    workspace_id: int
+    agent_id: Optional[int]
+    is_active: bool
+    created_at: datetime
+
+
+class ResolvedNumber(BaseModel):
+    """What the worker gets back when it resolves a dialed number — enough
+    to run the call without an operator session."""
+
+    workspace_id: int
+    agent_id: int
+    agent: AgentDetail
+
+
+# ---------- Reservations (hotel) ----------
+
+
+class ReservationCreate(BaseModel):
+    guest_name: str = Field(min_length=1, max_length=255)
+    guest_phone: Optional[str] = None
+    check_in: date
+    check_out: date
+    room_type: str = ""
+    num_guests: int = Field(default=1, ge=1, le=20)
+    notes: str = ""
+    call_id: Optional[int] = None
+
+
+class ReservationUpdate(BaseModel):
+    status: Optional[Literal["requested", "confirmed", "cancelled"]] = None
+
+
+class ReservationPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    workspace_id: int
+    guest_name: str
+    guest_phone: Optional[str]
+    check_in: date
+    check_out: date
+    room_type: str
+    num_guests: int
+    notes: str
+    status: str
+    call_id: Optional[int]
+    created_at: datetime
+

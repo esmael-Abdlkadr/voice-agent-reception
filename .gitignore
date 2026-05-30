@@ -32,3 +32,6 @@ qdrant-data/
 ollama-data/
 minio-data/
 
+
+# TS incremental build cache
+*.tsbuildinfo

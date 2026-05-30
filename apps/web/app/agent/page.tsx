@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Bot, Plus, Save, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyBanner } from "@/components/read-only-banner";
 import { TestCallPanel } from "@/components/test-call-panel";
 import { api } from "@/lib/api";
 import type { Agent, AgentCreate } from "@/lib/types";
@@ -18,14 +19,14 @@ const DEFAULT_CARTESIA_VOICE = "694f9389-aac1-45b6-b726-9d9369183238";
 
 export default function AgentPage() {
   return (
-    <AppShell>
+    <AppShell requires="admin">
       <AgentConfig />
     </AppShell>
   );
 }
 
 function AgentConfig() {
-  const { currentWorkspaceId, workspaces, openNewWorkspaceModal } = useAuth();
+  const { currentWorkspaceId, workspaces, openNewWorkspaceModal, canEdit } = useAuth();
   const [agents, setAgents] = useState<Agent[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +95,7 @@ function AgentConfig() {
             How the AI receptionist sounds and behaves on this workspace's calls.
           </p>
         </div>
-        {agents.length > 0 && (
+        {agents.length > 0 && canEdit && (
           <button
             type="button"
             onClick={() => setSelectedId(-1)}
@@ -111,6 +112,8 @@ function AgentConfig() {
           {error}
         </p>
       )}
+
+      <ReadOnlyBanner />
 
       <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
         <aside className="space-y-1.5">

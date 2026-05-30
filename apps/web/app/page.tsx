@@ -9,7 +9,7 @@ import type { CallSummary } from "@/lib/types";
 
 export default function HomePage() {
   return (
-    <AppShell>
+    <AppShell requires="admin">
       <LiveOperationsView />
     </AppShell>
   );
