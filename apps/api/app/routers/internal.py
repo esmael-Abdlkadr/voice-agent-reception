@@ -38,7 +38,6 @@ def resolve_number(
     if number.agent_id is not None:
         agent = session.get(Agent, number.agent_id)
     if agent is None or agent.workspace_id != number.workspace_id:
-        # Fall back to the workspace's first active agent.
         agent = session.execute(
             select(Agent)
             .where(Agent.workspace_id == number.workspace_id, Agent.is_active.is_(True))

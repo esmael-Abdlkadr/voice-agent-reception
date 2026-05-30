@@ -22,7 +22,6 @@ _load_local_env()
 
 
 def _normalize_db_url(url: str) -> str:
-    # SQLAlchemy needs an explicit driver. Default plain `postgresql://` to psycopg v3.
     if url.startswith("postgresql://"):
         return "postgresql+psycopg://" + url[len("postgresql://") :]
     if url.startswith("postgres://"):
@@ -66,14 +65,9 @@ def get_settings() -> Settings:
         livekit_api_secret=os.getenv("LIVEKIT_API_SECRET", ""),
         seed_admin_email=os.getenv("SEED_ADMIN_EMAIL", "admin@voiceops.dev"),
         seed_admin_password=os.getenv("SEED_ADMIN_PASSWORD", "voiceops-dev"),
-        # Shared secret the voice worker uses to call internal endpoints on
-        # phone calls (no operator session exists). Dev default is obviously
-        # insecure; set SERVICE_API_KEY in .env for any real deployment.
         service_api_key=os.getenv("SERVICE_API_KEY", "dev-service-key-change-me"),
-        # Signs session JWTs. MUST be set to a strong random value in prod —
-        # anyone with this secret can forge logins.
         jwt_secret=os.getenv("JWT_SECRET", "dev-jwt-secret-change-me"),
-        jwt_expire_hours=int(os.getenv("JWT_EXPIRE_HOURS", "168")),  # 7 days
+        jwt_expire_hours=int(os.getenv("JWT_EXPIRE_HOURS", "168")),
     )
 
 

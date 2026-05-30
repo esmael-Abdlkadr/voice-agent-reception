@@ -64,7 +64,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  // Auth
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", {
       method: "POST",
@@ -72,7 +71,6 @@ export const api = {
     }),
   me: () => request<CurrentUserContext>("/auth/me"),
 
-  // Workspaces
   listWorkspaces: () => request<WorkspaceSummary[]>("/workspaces"),
   createWorkspace: (payload: { name: string; slug?: string }) =>
     request<WorkspaceDetail>("/workspaces", {
@@ -90,7 +88,6 @@ export const api = {
   listMembers: (workspaceId: number) =>
     request<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`),
 
-  // Agents
   listAgents: (workspaceId: number) =>
     request<Agent[]>(`/workspaces/${workspaceId}/agents`),
   createAgent: (workspaceId: number, payload: AgentCreate) =>
@@ -108,7 +105,6 @@ export const api = {
       method: "DELETE",
     }),
 
-  // Knowledge
   listKnowledge: (workspaceId: number) =>
     request<KnowledgeDoc[]>(`/workspaces/${workspaceId}/knowledge`),
   uploadKnowledge: async (workspaceId: number, file: File) => {
@@ -146,13 +142,11 @@ export const api = {
       }
     ),
 
-  // Calls
   listCalls: (workspaceId: number) =>
     request<CallSummary[]>(`/workspaces/${workspaceId}/calls`),
   getCall: (workspaceId: number, callId: number) =>
     request<CallDetail>(`/workspaces/${workspaceId}/calls/${callId}`),
 
-  // Tools
   listTools: (workspaceId: number) =>
     request<Tool[]>(`/workspaces/${workspaceId}/tools`),
   createTool: (workspaceId: number, payload: ToolCreate) =>
@@ -178,7 +172,6 @@ export const api = {
       }
     ),
 
-  // Phone numbers
   listPhoneNumbers: (workspaceId: number) =>
     request<PhoneNumber[]>(`/workspaces/${workspaceId}/phone-numbers`),
   createPhoneNumber: (workspaceId: number, payload: PhoneNumberCreate) =>
@@ -200,7 +193,6 @@ export const api = {
       method: "DELETE",
     }),
 
-  // Reservations
   listReservations: (workspaceId: number, upcomingOnly = false) =>
     request<Reservation[]>(
       `/workspaces/${workspaceId}/reservations?upcoming_only=${upcomingOnly}`
@@ -215,7 +207,6 @@ export const api = {
       { method: "PATCH", body: JSON.stringify(payload) }
     ),
 
-  // LiveKit
   livekitToken: (params: {
     workspace_id: number;
     agent_id?: number;

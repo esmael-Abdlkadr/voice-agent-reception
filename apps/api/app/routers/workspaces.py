@@ -63,7 +63,6 @@ def list_workspaces(
 @router.post("", response_model=WorkspaceDetail, status_code=status.HTTP_201_CREATED)
 def create_workspace(
     payload: WorkspaceCreate,
-    # Onboarding a new client workspace is an agency-platform-admin action.
     user: User = Depends(auth_service.require_superuser),
     session: Session = Depends(get_session),
 ) -> WorkspaceDetail:
@@ -78,7 +77,7 @@ def create_workspace(
         created_by_user_id=user.id,
     )
     session.add(workspace)
-    session.flush()  # populate workspace.id
+    session.flush()
     session.add(
         WorkspaceMember(user_id=user.id, workspace_id=workspace.id, role="owner")
     )
@@ -122,9 +121,6 @@ def delete_workspace(
 ) -> None:
     session.delete(workspace)
     session.commit()
-
-
-# ---------- Members ----------
 
 
 @router.get("/{workspace_id}/members", response_model=list[WorkspaceMemberPublic])
@@ -225,7 +221,6 @@ def remove_member(
     member = session.get(WorkspaceMember, member_id)
     if member is None or member.workspace_id != workspace.id:
         raise HTTPException(status_code=404, detail="Member not found")
-    # Don't allow removing the last owner; they'd lock everyone out.
     if member.role == "owner":
         owner_count = session.execute(
             select(WorkspaceMember).where(

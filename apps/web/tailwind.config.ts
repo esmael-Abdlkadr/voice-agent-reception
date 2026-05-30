@@ -10,8 +10,6 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       colors: {
-        // Accent is exposed as a semantic name so we can swap palettes later
-        // without sweeping every component.
         accent: {
           DEFAULT: "#22d3ee",
           50: "#ecfeff",

@@ -60,7 +60,6 @@ function CallsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [error, setError] = useState<string | null>(null);
 
-  // Keep selected id in sync with the URL when the user navigates back/forward.
   useEffect(() => {
     const fromUrl = callIdParam ? Number(callIdParam) : null;
     if (fromUrl !== selectedId) {
@@ -69,7 +68,6 @@ function CallsView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callIdParam]);
 
-  // Push selected id into the URL so calls are linkable + back-button-able.
   function selectCall(id: number) {
     setSelectedId(id);
     const sp = new URLSearchParams(Array.from(searchParams.entries()));
@@ -85,7 +83,6 @@ function CallsView() {
     try {
       const list = await api.listCalls(currentWorkspaceId);
       setCalls(list);
-      // If the URL-supplied id is still valid, keep it; else fall back to first.
       setSelectedId((prev) => {
         if (prev !== null && list.some((c) => c.id === prev)) return prev;
         return list[0]?.id ?? null;
@@ -128,9 +125,6 @@ function CallsView() {
 
   const isLive = detail?.status === "active";
 
-  // While the selected call is active, re-fetch its detail periodically so
-  // the canonical record (final status, duration, ended_at) lands shortly
-  // after hang-up. The SSE stream handles the per-turn liveness in between.
   useEffect(() => {
     if (!isLive) return;
     const handle = window.setInterval(refetchDetail, 5000);
@@ -305,7 +299,6 @@ function CallDetailPanel({
 }) {
   const isLive = call.status === "active";
 
-  // Merge persisted turns with streamed ones, de-duped on (ts_ms, role).
   const turns: MergedTurn[] = [];
   const seen = new Set<string>();
   for (const t of call.turns) {

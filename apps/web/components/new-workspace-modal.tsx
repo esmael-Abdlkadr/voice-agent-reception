@@ -24,7 +24,6 @@ export function NewWorkspaceModal({ open, onClose, onCreated }: Props) {
     }
   }, [open]);
 
-  // Escape closes the modal.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {

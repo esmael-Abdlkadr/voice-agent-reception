@@ -35,16 +35,16 @@ from app.models import KnowledgeDoc
 
 log = logging.getLogger(__name__)
 
-_VECTOR_SIZE = 384  # all-MiniLM-L6-v2 native dimension
+_VECTOR_SIZE = 384
 
-_embedder = None  # Lazy: torch import + model load is slow.
+_embedder = None
 _qdrant = QdrantClient(url=settings.qdrant_url)
 
 
 def _get_embedder():
     global _embedder
     if _embedder is None:
-        from sentence_transformers import SentenceTransformer  # heavy import; defer it
+        from sentence_transformers import SentenceTransformer
 
         log.info("Loading embedding model %s (first use downloads ~80MB)", settings.embedding_model)
         _embedder = SentenceTransformer(settings.embedding_model)
@@ -71,7 +71,6 @@ def _extract_text(filename: str, content: bytes) -> str:
     if lower.endswith(".pdf"):
         reader = PdfReader(io.BytesIO(content))
         return "\n".join(page.extract_text() or "" for page in reader.pages)
-    # .txt, .md, anything else: treat as UTF-8 text.
     return content.decode("utf-8", errors="replace")
 
 
@@ -165,7 +164,6 @@ def delete_document_vectors(workspace_id: int, doc_id: int) -> None:
             ),
         )
     except UnexpectedResponse:
-        # Collection didn't exist; nothing to delete.
         return
 
 

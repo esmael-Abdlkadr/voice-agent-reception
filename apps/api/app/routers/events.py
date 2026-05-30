@@ -91,12 +91,10 @@ async def stream(user: User = Depends(_current_user_from_token)) -> StreamingRes
     allowed = _allowed_workspace_ids(user)
 
     async def gen() -> AsyncIterator[bytes]:
-        # 1) Snapshot
         yield b": connected\n\n"
         for event in _snapshot_active_calls(allowed):
             yield _sse_data(event)
 
-        # 2) Live stream with heartbeat
         sub = subscribe()
 
         try:
@@ -118,7 +116,7 @@ async def stream(user: User = Depends(_current_user_from_token)) -> StreamingRes
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
-            "X-Accel-Buffering": "no",  # disables nginx buffering if present
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
     )

@@ -88,7 +88,7 @@ class WorkspaceMember(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
-    role: Mapped[str] = mapped_column(String(32))  # owner | admin | viewer
+    role: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped[User] = relationship(back_populates="memberships")
@@ -128,7 +128,7 @@ class KnowledgeDoc(Base):
     filename: Mapped[str] = mapped_column(String(512))
     content_type: Mapped[str] = mapped_column(String(128), default="")
     size_bytes: Mapped[int] = mapped_column(Integer, default=0)
-    status: Mapped[str] = mapped_column(String(32), default="processing")  # processing|ready|failed
+    status: Mapped[str] = mapped_column(String(32), default="processing")
     qdrant_collection: Mapped[str] = mapped_column(String(128), default="")
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     uploaded_by_user_id: Mapped[Optional[int]] = mapped_column(
@@ -187,9 +187,9 @@ class EscalationRule(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
-    trigger: Mapped[str] = mapped_column(String(64))  # keyword | sentiment | explicit_request
+    trigger: Mapped[str] = mapped_column(String(64))
     trigger_value: Mapped[str] = mapped_column(String(512), default="")
-    action: Mapped[str] = mapped_column(String(64))  # transfer | voicemail | callback
+    action: Mapped[str] = mapped_column(String(64))
     action_target: Mapped[str] = mapped_column(String(512), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -206,8 +206,6 @@ class Call(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
-    # The dashboard user who initiated this call (browser test calls). NULL for
-    # inbound phone calls with no operator — those are workspace-level.
     owner_user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -218,7 +216,7 @@ class Call(Base):
     caller_identity: Mapped[str] = mapped_column(String(255))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="active")  # active|completed|failed|escalated
+    status: Mapped[str] = mapped_column(String(32), default="active")
     outcome: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     escalation_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     recording_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
@@ -240,7 +238,7 @@ class CallTurn(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     call_id: Mapped[int] = mapped_column(ForeignKey("calls.id", ondelete="CASCADE"), index=True)
-    role: Mapped[str] = mapped_column(String(16))  # user | agent
+    role: Mapped[str] = mapped_column(String(16))
     text: Mapped[str] = mapped_column(Text)
     ts_ms: Mapped[int] = mapped_column(Integer)
     audio_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -262,7 +260,7 @@ class CallToolCall(Base):
     result_json: Mapped[dict] = mapped_column(JSON, default=dict)
     ts_ms: Mapped[int] = mapped_column(Integer)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
-    status: Mapped[str] = mapped_column(String(16), default="success")  # success | error
+    status: Mapped[str] = mapped_column(String(16), default="success")
 
     call: Mapped[Call] = relationship(back_populates="tool_calls")
 
@@ -281,8 +279,6 @@ class Reservation(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
-    # The dashboard user whose call produced this reservation. NULL for
-    # inbound phone calls with no operator — those are workspace-level.
     owner_user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -293,7 +289,7 @@ class Reservation(Base):
     room_type: Mapped[str] = mapped_column(String(128), default="")
     num_guests: Mapped[int] = mapped_column(Integer, default=1)
     notes: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String(16), default="requested")  # requested|confirmed|cancelled
+    status: Mapped[str] = mapped_column(String(16), default="requested")
     call_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
     )

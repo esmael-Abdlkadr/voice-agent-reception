@@ -123,8 +123,6 @@ export default function LoginPage() {
 }
 
 function HeroPane() {
-  // Bars used for the decorative waveform. Heights chosen to read like
-  // a voice waveform rather than a chart.
   const bars = [
     14, 28, 18, 42, 22, 56, 34, 70, 28, 48, 16, 36, 22, 60, 38, 52, 24, 44, 18,
     32, 14, 22,
@@ -132,7 +130,6 @@ function HeroPane() {
 
   return (
     <section className="relative hidden overflow-hidden border-r border-zinc-900 bg-zinc-950 lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-12">
-      {/* Ambient layered glows — soft, off-center, not a head-on radial */}
       <div
         aria-hidden
         className="pointer-events-none absolute -left-32 top-0 h-[36rem] w-[36rem] rounded-full bg-accent-500/[0.08] blur-[110px]"
@@ -142,13 +139,11 @@ function HeroPane() {
         className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] rounded-full bg-accent-400/[0.05] blur-[110px]"
       />
 
-      {/* Logo */}
       <div className="relative flex items-center gap-2.5">
         <Mark />
         <span className="text-base font-medium tracking-tight">VoiceOps</span>
       </div>
 
-      {/* Center pitch */}
       <div className="relative max-w-xl">
         <p className="mb-4 inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-accent-400">
           <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse-glow" />
@@ -166,7 +161,6 @@ function HeroPane() {
         </p>
       </div>
 
-      {/* Waveform decoration */}
       <div className="relative">
         <div className="mb-3 flex items-end gap-1 text-zinc-700">
           {bars.map((h, i) => (

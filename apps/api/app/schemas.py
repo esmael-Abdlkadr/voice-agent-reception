@@ -13,9 +13,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 WorkspaceRole = Literal["owner", "admin", "viewer"]
 
 
-# ---------- Auth ----------
-
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -50,9 +47,6 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     status: Optional[str] = None
     is_superuser: Optional[bool] = None
-
-
-# ---------- Workspaces ----------
 
 
 class WorkspaceSummary(BaseModel):
@@ -97,7 +91,6 @@ class WorkspaceMemberPublic(BaseModel):
     user_id: int
     role: WorkspaceRole
     created_at: datetime
-    # Joined user fields (populated by router).
     user_email: str
     user_name: str
 
@@ -111,15 +104,9 @@ class WorkspaceMemberUpdate(BaseModel):
     role: WorkspaceRole
 
 
-# ---------- Current user context ----------
-
-
 class CurrentUserContext(BaseModel):
     user: UserPublic
     workspaces: list[WorkspaceSummary]
-
-
-# ---------- Agents ----------
 
 
 class AgentCreate(BaseModel):
@@ -158,9 +145,6 @@ class AgentDetail(BaseModel):
     updated_at: datetime
 
 
-# ---------- Knowledge ----------
-
-
 KnowledgeStatus = Literal["processing", "ready", "failed"]
 
 
@@ -193,9 +177,6 @@ class KnowledgeSearchHit(BaseModel):
 class KnowledgeSearchResponse(BaseModel):
     query: str
     hits: list[KnowledgeSearchHit]
-
-
-# ---------- Tools (webhooks the agent can call) ----------
 
 
 class ToolCreate(BaseModel):
@@ -250,9 +231,6 @@ class ToolTestResponse(BaseModel):
     response_body: str
     error: Optional[str] = None
     duration_ms: int
-
-
-# ---------- Calls ----------
 
 
 CallStatus = Literal["active", "completed", "failed", "escalated"]
@@ -334,9 +312,6 @@ class CallDetail(CallSummary):
     tool_calls: list[CallToolCallPublic]
 
 
-# ---------- Live streaming (mid-call) ----------
-
-
 class CallStreamEvent(BaseModel):
     """A single live event the worker emits while a call is in progress.
 
@@ -351,16 +326,11 @@ class CallStreamEvent(BaseModel):
     livekit_room_id: str
     kind: Literal["turn", "tool_call"]
     ts_ms: int = Field(ge=0)
-    # turn
     role: Optional[TurnRole] = None
     text: Optional[str] = None
-    # tool_call
     tool_name: Optional[str] = None
     status: Optional[Literal["success", "error"]] = None
     duration_ms: int = Field(ge=0, default=0)
-
-
-# ---------- Phone numbers ----------
 
 
 class PhoneNumberCreate(BaseModel):
@@ -400,9 +370,6 @@ class ResolvedNumber(BaseModel):
     workspace_id: int
     agent_id: int
     agent: AgentDetail
-
-
-# ---------- Reservations (hotel) ----------
 
 
 class ReservationCreate(BaseModel):

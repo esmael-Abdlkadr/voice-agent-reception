@@ -71,10 +71,8 @@ def create_token(
             "and LIVEKIT_API_SECRET in .env.",
         )
 
-    # Permission: must have at least viewer access to the workspace.
     workspace, _role = auth_service._resolve_member_role(session, user, req.workspace_id)
 
-    # Resolve agent: explicit, or first active agent in the workspace.
     agent: Agent | None = None
     if req.agent_id is not None:
         agent = session.get(Agent, req.agent_id)

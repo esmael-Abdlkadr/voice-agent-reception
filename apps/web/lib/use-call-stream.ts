@@ -67,7 +67,6 @@ export function useCallStream(
       if (event.type === "call_turn") {
         const turn = event.data as unknown as StreamedTurn;
         setState((prev) => {
-          // De-dupe on (ts_ms, role) in case of reconnect overlap.
           if (
             prev.turns.some(
               (t) => t.ts_ms === turn.ts_ms && t.role === turn.role

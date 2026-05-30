@@ -60,15 +60,6 @@ DEFAULT_PERSONA = (
 DEFAULT_GREETING = "Thank you for calling. How may I help you today?"
 
 
-# -----------------------------------------------------------------------------
-# Tool factories
-#
-# We build FunctionTool instances dynamically because each workspace
-# configures its own webhook tools. Each factory closes over the workspace
-# context and returns a livekit-agents FunctionTool the Agent can invoke.
-# -----------------------------------------------------------------------------
-
-
 def make_kb_tool(
     http_client: httpx.AsyncClient,
     api_base_url: str,
@@ -199,7 +190,6 @@ def make_webhook_tool(
             )
             if not ok:
                 return f"The {name} tool returned an error (HTTP {response.status_code}). Apologize to the caller and suggest a human follow-up."
-            # Truncate to keep the LLM context lean
             return body[:2000]
         except Exception as exc:
             duration_ms = int((time.monotonic() - started) * 1000)
@@ -341,7 +331,7 @@ def make_reservation_tool(
             fire_stream("tool_call", tool_name="create_reservation", status="success",
                         ts_ms=ts_ms, duration_ms=duration_ms)
             return "Reservation recorded successfully."
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             duration_ms = int((time.monotonic() - started) * 1000)
             log.exception("create_reservation failed")
             tool_log.append({
@@ -411,7 +401,7 @@ def make_lookup_tool(
                     f"{r['status']}"
                 )
             return "Found: " + "; ".join(lines) + ". Read this back to the guest."
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             duration_ms = int((time.monotonic() - started) * 1000)
             log.exception("look_up_reservation failed")
             tool_log.append({
@@ -437,10 +427,6 @@ class Clock:
         return int((time.monotonic() - self.start) * 1000)
 
 
-# Marker that begins a leaked tool/function call the model sometimes emits as
-# plain text (e.g. "<function=search_knowledge_base {...}>" or "<|python_tag|>").
-# These must never reach TTS or the transcript. We cut the text from the first
-# such marker onward, since the leak always trails the spoken reply.
 import re as _re
 
 _LEAK_MARKER = _re.compile(r"<\s*\|?\s*(function|tool_call|\|?python)", _re.IGNORECASE)
@@ -470,9 +456,6 @@ async def _sanitize_text_stream(text):
         yield buf
 
 
-# If a whole turn was nothing but a leaked tool call, sanitizing leaves no
-# words — never let that become dead air. Stream the clean text, and if none
-# was produced, speak a graceful fallback so Sofia always responds.
 _EMPTY_FALLBACK = "I'm sorry, could you say that again for me?"
 
 
@@ -522,8 +505,6 @@ async def entrypoint(ctx: JobContext) -> None:
         "API_PUBLIC_URL", "http://localhost:8000"
     )
     attrs = dict(getattr(participant, "attributes", {}) or {})
-    # SIP participants carry sip.* attributes; the dialed (Twilio) number is
-    # what we route on, the caller number is who's calling.
     dialed_number = attrs.get("sip.trunkPhoneNumber") or attrs.get("sip.dialedNumber")
     caller_number = attrs.get("sip.phoneNumber")
 
@@ -532,7 +513,6 @@ async def entrypoint(ctx: JobContext) -> None:
     browser_api_token = metadata.get("api_token")
 
     if isinstance(browser_workspace_id, int) and isinstance(browser_agent_id, int) and browser_api_token:
-        # --- Browser test call: identity + config come from the token metadata.
         workspace_id = browser_workspace_id
         agent_id = browser_agent_id
         api_token = browser_api_token
@@ -552,8 +532,6 @@ async def entrypoint(ctx: JobContext) -> None:
             await http_client.aclose()
             return
     elif dialed_number:
-        # --- Inbound phone call: authenticate as the service and resolve the
-        # agent from the dialed number.
         service_key = os.getenv("SERVICE_API_KEY", "dev-service-key-change-me")
         api_token = service_key
         caller_identity = caller_number or participant.identity
@@ -584,7 +562,6 @@ async def entrypoint(ctx: JobContext) -> None:
         )
         return
 
-    # Fetch the workspace's webhook tools so we can register them dynamically.
     workspace_tools: list[dict[str, Any]] = []
     try:
         tools_response = await http_client.get(
@@ -615,9 +592,6 @@ async def entrypoint(ctx: JobContext) -> None:
     escalation_state: dict[str, Any] = {"escalated": False, "reason": None}
     room_name = ctx.room.name
 
-    # Live streaming: push each turn / tool call to the API as it happens so
-    # the dashboard can render the conversation in real time. Fire-and-forget
-    # so a slow POST never adds latency to the call itself.
     async def stream(kind: str, **fields: Any) -> None:
         try:
             await http_client.post(
@@ -634,10 +608,8 @@ async def entrypoint(ctx: JobContext) -> None:
 
             asyncio.create_task(stream(kind, **fields))
         except RuntimeError:
-            # No running loop (shouldn't happen inside the async entrypoint).
             pass
 
-    # Build the tools list: KB + webhook tools + escalation.
     tools = [
         make_kb_tool(http_client, api_base_url, workspace_id, tool_calls_log, clock, fire_stream),
         make_escalate_tool(escalation_state, tool_calls_log, clock, fire_stream),
@@ -650,8 +622,6 @@ async def entrypoint(ctx: JobContext) -> None:
         except Exception:
             log.exception("Failed to register webhook tool %s", t.get("name"))
 
-    # The agent can take reservations and look up existing ones. Register both
-    # tools and tell it today's date so it can resolve "this Friday" etc.
     tools.append(
         make_reservation_tool(
             http_client, api_base_url, workspace_id, caller_identity,
@@ -716,13 +686,10 @@ async def entrypoint(ctx: JobContext) -> None:
                 "audio_ms": None,
             }
         )
-        # Push the turn to the dashboard live.
         fire_stream("turn", role=role, text=text, ts_ms=ts_ms)
 
     await session.start(agent=agent, room=ctx.room)
 
-    # Tell the API the call has started so the live dashboard sees it
-    # immediately. Idempotent on the API side (upsert by livekit_room_id).
     try:
         await http_client.post(
             f"{api_base_url}/workspaces/{workspace_id}/calls",
@@ -740,11 +707,6 @@ async def entrypoint(ctx: JobContext) -> None:
     except Exception:
         log.exception("Failed to register call start with API")
 
-    # Speak the greeting verbatim via TTS (no LLM) so it's immediate, exact,
-    # and never paraphrased or skipped.
-    # Greeting must always play fully — allow_interruptions=False so a hot mic
-    # or background noise at connect time can't cut Sofia off before she greets.
-    # say() emits a conversation_item_added event, so the turn handler logs it.
     await session.say(greeting, allow_interruptions=False)
 
     async def persist_call() -> None:

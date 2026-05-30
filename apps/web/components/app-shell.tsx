@@ -20,8 +20,6 @@ import { NewWorkspaceModal } from "@/components/new-workspace-modal";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { WorkspaceRole } from "@/lib/types";
 
-// minRole = lowest workspace role that may see this page. Config surfaces
-// require admin; operational/monitoring pages are open to viewers.
 const navItems: {
   href: string;
   label: string;
@@ -65,8 +63,6 @@ export function AppShell({
     if (status === "anonymous") router.replace("/login");
   }, [router, status]);
 
-  // If the role can't see this page, send them to their first allowed page
-  // (e.g. a viewer landing on "/" Live goes to Calls) instead of a dead end.
   const firstAllowed = navItems.find((i) => !i.disabled && hasAccess(i.minRole))?.href;
   const blocked = requires !== undefined && !hasAccess(requires);
   useEffect(() => {

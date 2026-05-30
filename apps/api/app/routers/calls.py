@@ -37,8 +37,6 @@ def list_calls(
     session: Session = Depends(get_session),
 ) -> list[CallSummary]:
     stmt = select(Call).where(Call.workspace_id == workspace.id)
-    # Managers (owner/admin/superuser) see every call in the workspace; a
-    # regular member sees only the calls they own.
     if not auth_service.is_workspace_manager(session, viewer, workspace.id):
         stmt = stmt.where(Call.owner_user_id == viewer.id)
     calls = session.execute(stmt.order_by(Call.started_at.desc()).limit(200)).scalars().all()
@@ -92,7 +90,6 @@ def upsert_call(
         session.flush()
     else:
         call = existing
-        # Update scalar fields (the worker's payload is the source of truth).
         call.agent_id = payload.agent_id
         call.caller_identity = payload.caller_identity
         call.started_at = payload.started_at
@@ -108,10 +105,6 @@ def upsert_call(
         if payload.duration_ms is not None:
             call.duration_ms = payload.duration_ms
 
-    # Only rewrite turns + tool_calls when the worker actually sent them.
-    # The session-start POST sends empty lists and we don't want to wipe
-    # anything; the session-end POST sends the full canonical lists and
-    # we replace.
     if payload.turns:
         session.execute(delete(CallTurn).where(CallTurn.call_id == call.id))
         for turn in payload.turns:

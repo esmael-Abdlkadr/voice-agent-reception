@@ -154,7 +154,7 @@ def test_tool(
             error=None,
             duration_ms=duration_ms,
         )
-    except Exception as exc:  # noqa: BLE001 -- operator-facing error string
+    except Exception as exc:
         duration_ms = int((time.monotonic() - started) * 1000)
         return ToolTestResponse(
             status_code=0,

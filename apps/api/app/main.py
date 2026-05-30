@@ -73,8 +73,6 @@ def seed_admin() -> None:
         log.info("Seeded superuser %s", admin.email)
 
 
-# Demo non-superuser accounts so the role-based experience is testable.
-# (email, name, password, workspace role)
 _SEED_MEMBERS = [
     ("manager@voiceops.dev", "Workspace Manager", "manager-dev", "admin"),
     ("viewer@voiceops.dev", "Read-only Viewer", "viewer-dev", "viewer"),

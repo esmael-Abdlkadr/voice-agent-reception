@@ -23,7 +23,7 @@ from app.services import auth_service, knowledge_service
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/knowledge", tags=["knowledge"])
 
-MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_BYTES = 10 * 1024 * 1024
 ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf"}
 
 

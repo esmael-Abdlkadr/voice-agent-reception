@@ -23,7 +23,6 @@ type LiveEvent = {
 export function useLiveCalls(workspaceId: number | null): CallSummary[] {
   const [calls, setCalls] = useState<CallSummary[]>([]);
 
-  // Initial / on-change fetch
   useEffect(() => {
     if (workspaceId === null) {
       setCalls([]);
@@ -36,14 +35,12 @@ export function useLiveCalls(workspaceId: number | null): CallSummary[] {
         if (!cancelled) setCalls(list);
       })
       .catch(() => {
-        // soft fail; SSE may still bring us state
       });
     return () => {
       cancelled = true;
     };
   }, [workspaceId]);
 
-  // SSE stream
   useEffect(() => {
     if (workspaceId === null) return;
     if (typeof window === "undefined") return;
@@ -71,7 +68,6 @@ export function useLiveCalls(workspaceId: number | null): CallSummary[] {
           next[idx] = incoming;
           return next;
         }
-        // New call: insert in newest-first order by started_at.
         const merged = [incoming, ...prev];
         merged.sort(
           (a, b) =>
@@ -81,11 +77,7 @@ export function useLiveCalls(workspaceId: number | null): CallSummary[] {
       });
     };
 
-    // EventSource auto-reconnects on close; nothing to do on error beyond
-    // logging in dev.
     es.onerror = () => {
-      // Browsers will retry automatically. If the token expired we'll
-      // start getting 401s; the user can re-log in.
     };
 
     return () => {

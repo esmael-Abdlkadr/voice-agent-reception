@@ -51,7 +51,6 @@ def list_reservations(
     upcoming_only: bool = Query(default=False),
 ) -> list[ReservationPublic]:
     stmt = select(Reservation).where(Reservation.workspace_id == workspace.id)
-    # Managers see all reservations; a regular member sees only their own.
     if not auth_service.is_workspace_manager(session, viewer, workspace.id):
         stmt = stmt.where(Reservation.owner_user_id == viewer.id)
     if upcoming_only:

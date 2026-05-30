@@ -166,9 +166,8 @@ def _resolve_member_role(
         )
     ).scalar_one_or_none()
     if member is not None:
-        return workspace, member.role  # type: ignore[return-value]
+        return workspace, member.role
     if user.is_superuser:
-        # Superusers act with owner-equivalent access without an explicit membership.
         return workspace, "owner"
     raise HTTPException(status_code=403, detail="Not a member of this workspace")
 
@@ -186,8 +185,6 @@ def require_workspace_role(min_role: WorkspaceRole):
         credentials: HTTPAuthorizationCredentials | None = Depends(_security),
         session: Session = Depends(get_session),
     ) -> Workspace:
-        # The voice worker authenticates with the service key on phone calls;
-        # it acts as the system and may reach any workspace.
         if is_service_credential(credentials):
             workspace = session.get(Workspace, workspace_id)
             if workspace is None:

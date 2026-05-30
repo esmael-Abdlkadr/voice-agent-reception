@@ -110,14 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const currentRole: WorkspaceRole | null =
     workspaces.find((w) => w.id === currentWorkspaceId)?.role ?? null;
   const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 1, admin: 2, owner: 3 };
-  // Superusers clear every gate; otherwise compare the current workspace role.
   const hasAccess = useCallback(
     (minRole: WorkspaceRole) => {
       if (user?.is_superuser) return true;
       if (!currentRole) return false;
       return ROLE_RANK[currentRole] >= ROLE_RANK[minRole];
     },
-    // currentRole derives from workspaces+currentWorkspaceId; both are deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user?.is_superuser, currentRole]
   );
